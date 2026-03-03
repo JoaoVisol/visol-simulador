@@ -145,7 +145,7 @@ with tab3:
         "Valor Mensal (R$)": [15800.00, 349.30, 90.00, 1000.00, 319.90, 300.00, 1500.00, 600.00, 70.42]
     })
     
-    edited_opex = st.data_editor(default_opex, num_rows="dynamic", use_container_width=True)
+    edited_opex = st.data_editor(default_opex, num_rows="dynamic", width="stretch")
     opex_base_total = edited_opex["Valor Mensal (R$)"].sum()
     
     marketing_row = edited_opex[edited_opex["Categoria"].str.contains("Marketing", case=False, na=False)]
@@ -381,7 +381,7 @@ with tab1:
     
     st.dataframe(
         df_projecao.style.format({col: format_br for col in colunas_moeda}),
-        use_container_width=True
+        width="stretch"
     )
 
 # ==========================================
@@ -470,5 +470,5 @@ with tab4:
     st.dataframe(
         matriz_caixa.style.format(lambda x: format_br(x, decimais=0))
         .background_gradient(cmap="RdYlGn", axis=None),
-        use_container_width=True
+        width="stretch"
     )
