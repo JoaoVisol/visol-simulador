@@ -180,7 +180,6 @@ st.sidebar.header("4. Eventos e CAPEX (Intersolar)")
 incluir_intersolar = st.sidebar.checkbox("Participar da Intersolar (Anual)", value=def_incluir_intersolar)
 
 if incluir_intersolar:
-    # CORREÇÃO AQUI: Recupera os valores padrão caso o banco tenha salvo 0
     safe_int_custo = def_int_custo if def_int_custo > 0 else 35000.0
     safe_int_aumento = def_int_aumento if def_int_custo > 0 else 10000.0
     safe_int_retorno = def_int_retorno if def_int_custo > 0 else 45
@@ -271,8 +270,28 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
     clientes_addon_anterior = {i: 0 for i in range(len(lista_addons))}
     
     for mes in range(1, meses + 1):
+        
+        # --- NOVA LÓGICA DE RAMP-UP (4 MESES) E DELAY DE CUSTOS ---
+        vendas_baseline = 4.0
+        arpa_baseline = 150.0
+        
+        # Fator de Ramp-up: Mês 1 (0%), Mês 2 (33.3%), Mês 3 (66.6%), Mês 4+ (100%)
+        fator_rampup = min(1.0, (mes - 1) / 3.0)
+        
+        meta_vendas = params_simulacao["vendas_mes"]
+        meta_arpa = params_simulacao["arpa_novo"]
+        
+        vendas_ramped = vendas_baseline + (meta_vendas - vendas_baseline) * fator_rampup
+        arpa_ramped = arpa_baseline + (meta_arpa - arpa_baseline) * fator_rampup
+        
+        # Delay de Custos: 0 no Mês 1, 100% do Mês 2 em diante
+        fator_custo = 0 if mes == 1 else 1
+        add_mkt_ativo = params_simulacao["add_mkt"] * fator_custo
+        add_vendas_ativo = params_simulacao["add_vendas"] * fator_custo
+        add_outros_ativo = params_simulacao["add_outros"] * fator_custo
+
         fator_eficiencia_comercial = (1 + (incremento_semestral_vendas / 100)) ** ((mes - 1) // 6)
-        vendas_base_mes = params_simulacao["vendas_mes"] * fator_eficiencia_comercial
+        vendas_base_mes = vendas_ramped * fator_eficiencia_comercial
         
         saida_capex = 0
         clientes_extras_intersolar = 0
@@ -287,10 +306,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
                 if mes_pos_evento &lt; 3:
                     ano_evento_retorno = (mes - 10) // 12
                     custo_evento_ref = intersolar_custo_ano1 + (ano_evento_retorno * intersolar_aumento_anual)
-                    
-                    # CORREÇÃO AQUI: Proteção matemática contra divisão por zero
                     razao_custo = (custo_evento_ref / intersolar_custo_ano1) if intersolar_custo_ano1 > 0 else 1.0
-                    
                     retorno_total = intersolar_retorno_ano1 * razao_custo * ((1 + (intersolar_eficiencia_anual/100)) ** ano_evento_retorno)
                     clientes_extras_intersolar = retorno_total / 3 
                     
@@ -298,7 +314,8 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         clientes_churn = clientes_atuais * params_simulacao["churn_rate"]
         clientes_atuais = clientes_atuais + novos_clientes - clientes_churn
         
-        novo_mrr_core = novos_clientes * params_simulacao["arpa_novo"]
+        # Usa o ARPA com ramp-up
+        novo_mrr_core = novos_clientes * arpa_ramped
         mrr_churn = clientes_churn * (mrr_atual / max(clientes_atuais, 1))
         mrr_atual = mrr_atual + novo_mrr_core - mrr_churn
         
@@ -336,220 +353,4 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         fator_inflacao_opex = (1 + (inflacao_opex_anual / 100)) ** (mes / 12)
         opex_base_mes = opex_base_total * fator_inflacao_opex
         
-        opex_gatilhos = 0
-        for gatilho in lista_gatilhos:
-            multiplicador = int(clientes_atuais // gatilho["clientes_alvo"])
-            opex_gatilhos += multiplicador * gatilho["valor"]
-            
-        opex_total = opex_base_mes + params_simulacao["add_mkt"] + params_simulacao["add_vendas"] + params_simulacao["add_outros"] + opex_gatilhos
-        saida_emprestimo = parcela_emprestimo if mes &lt;= meses_restantes_emprestimo else 0
-        
-        saidas_totais = opex_total + impostos + comissao_paga_mes + saida_emprestimo + saida_capex
-        fluxo_mes = receita_bruta + entrada_fomento + entrada_aporte - saidas_totais
-        caixa_atual += fluxo_mes
-        
-        fator_inflacao_cac = (1 + (inflacao_cac_anual / 100)) ** (mes / 12)
-        custo_marketing_mes = (marketing_base + params_simulacao["add_mkt"]) * fator_inflacao_cac
-        if saida_capex > 0: custo_marketing_mes += saida_capex
-            
-        custo_vendas = comissao_total_gerada + params_simulacao["add_vendas"]
-        cac = (custo_marketing_mes + custo_vendas) / novos_clientes if novos_clientes > 0 else 0
-        arpa_blended = mrr_total_mes / clientes_atuais if clientes_atuais > 0 else 0
-        
-        fator_desagio_ltv = 0.5 
-        lifetime_teorico = 1 / params_simulacao["churn_rate"] if params_simulacao["churn_rate"] > 0 else 0
-        lifetime_aplicado = lifetime_teorico * fator_desagio_ltv
-        ltv = arpa_blended * lifetime_aplicado
-        
-        dados.append({
-            "Mês": mes, "Novos Clientes": novos_clientes, "Clientes Ativos": clientes_atuais,
-            "MRR Licenças (R$)": mrr_atual, "MRR Add-ons (R$)": receita_addons_total, "MRR Total (R$)": mrr_total_mes,
-            "Receita Implementação (R$)": receita_implementacao, "Receita Bruta (R$)": receita_bruta,
-            "Fomento FAPERJ (R$)": entrada_fomento, "Aporte Investidor (R$)": entrada_aporte,
-            "OPEX Base (R$)": opex_base_mes, "OPEX Gatilhos (R$)": opex_gatilhos, "OPEX Total (R$)": opex_total,
-            "Impostos (R$)": impostos, "Comissões Pagas (R$)": comissao_paga_mes, "Empréstimo (R$)": saida_emprestimo,
-            "CAPEX (R$)": saida_capex, "Saídas Totais (R$)": saidas_totais, "Fluxo do Mês (R$)": fluxo_mes,
-            "Caixa Acumulado (R$)": caixa_atual, "ARPA Blended (R$)": arpa_blended, "CAC (R$)": cac, "LTV (R$)": ltv
-        })
-    return pd.DataFrame(dados)
-
-df_projecao = projetar_fluxo(
-    params, meses_projecao, incluir_intersolar, lista_addons, aporte_investimento, mes_aporte, 
-    inflacao_cac_anual, inflacao_opex_anual, lista_gatilhos, opex_base_total, marketing_base,
-    incremento_semestral_vendas, intersolar_custo_ano1, intersolar_aumento_anual, 
-    intersolar_retorno_ano1, intersolar_eficiencia_anual
-)
-
-# 
-# ABA 1: PROJEÇÕES FINANCEIRAS
-# 
-with tab1:
-    st.header(f"Projeção: Cenário {cenario_selecionado}")
-
-    ult_mes = df_projecao.iloc[-1]
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("MRR Total Final", format_br(ult_mes['MRR Total (R$)']))
-    col2.metric("Receita Bruta Final", format_br(ult_mes['Receita Bruta (R$)']))
-    col3.metric("Caixa Final", format_br(ult_mes['Caixa Acumulado (R$)']))
-    col4.metric("Clientes Finais", int(ult_mes['Clientes Ativos']))
-
-    st.markdown("---")
-    st.subheader("Métricas SaaS (Unit Economics)")
-    col5, col6, col7, col8 = st.columns(4)
-    cac_medio = df_projecao['CAC (R$)'].mean()
-    ltv_medio = df_projecao['LTV (R$)'].mean()
-    ltv_cac_ratio = ltv_medio / cac_medio if cac_medio > 0 else 0
-    arpa_final = ult_mes['ARPA Blended (R$)']
-
-    col5.metric("CAC Médio", format_br(cac_medio))
-    col6.metric("LTV Estimado (Conservador)", format_br(ltv_medio))
-    col7.metric("Relação LTV:CAC", f"{ltv_cac_ratio:.1f}x".replace(".", ","))
-    col8.metric("ARPA Final (Blended)", format_br(arpa_final))
-
-    st.markdown("---")
-    col_graf1, col_graf2 = st.columns(2)
-    with col_graf1:
-        st.subheader("Composição da Receita")
-        if len(lista_addons) > 0:
-            st.bar_chart(df_projecao, x="Mês", y=["MRR Licenças (R$)", "MRR Add-ons (R$)", "Receita Implementação (R$)"])
-        else:
-            st.bar_chart(df_projecao, x="Mês", y=["MRR Licenças (R$)", "Receita Implementação (R$)"])
-
-    with col_graf2:
-        st.subheader("Evolução do Caixa Acumulado (Runway)")
-        st.line_chart(df_projecao, x="Mês", y="Caixa Acumulado (R$)")
-
-    st.subheader("DRE Simplificado e Fluxo de Caixa (Mensal)")
-    colunas_moeda = [col for col in df_projecao.columns if "(R$)" in col]
-    st.dataframe(df_projecao.style.format({col: format_br for col in colunas_moeda}), use_container_width=True)
-
-    st.markdown("---")
-    st.subheader("📥 Exportação de Dados")
-    csv_data = df_projecao.to_csv(index=False).encode('utf-8')
-    st.download_button(label="Baixar DRE Projetado (CSV)", data=csv_data, file_name=f"visol_projecao_{cenario_selecionado.split()[0].lower()}.csv", mime="text/csv")
-
-# 
-# ABA 2: VALUATION SAAS
-# 
-with tab2:
-    st.header("Valuation da Visol (Método de Múltiplos de ARR)")
-    
-    arr_atual = mrr_inicial * 12
-    mrr_projetado = ult_mes['MRR Total (R$)']
-    arr_projetado = mrr_projetado * 12
-    
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("ARR Atual (Mês 0)", format_br(arr_atual))
-    c2.metric(f"ARR Projetado (Mês {meses_projecao})", format_br(arr_projetado))
-    c3.metric("Taxa de Churn Mensal", format_pct_br(params['churn_rate']))
-    c4.metric("Crescimento Projetado (ARR)", format_pct_br((arr_projetado/arr_atual)-1))
-
-    st.markdown("---")
-    col_val1, col_val2 = st.columns([1, 2])
-    
-    with col_val1:
-        st.markdown("**Definição do Múltiplo**")
-        
-        multiplo_arr = st.slider("Múltiplo de ARR Aplicado", 1.0, 15.0, def_multiplo_arr, 0.5, disabled=not is_admin)
-        index_base = 1 if def_base_calculo == "ARR Projetado (Forward)" else 0
-        base_calculo = st.radio("Base do ARR", ["ARR Atual (Trailing)", "ARR Projetado (Forward)"], index=index_base, disabled=not is_admin)
-        
-        arr_base = arr_projetado if base_calculo == "ARR Projetado (Forward)" else arr_atual
-        valuation_pre_money = arr_base * multiplo_arr
-        st.info(f"**Valuation Pre-Money:**\n{format_br(valuation_pre_money)}")
-              
-    with col_val2:
-        st.markdown("**Impacto da Captação no Cap Table**")
-        if aporte_investimento > 0:
-            valuation_post_money = valuation_pre_money + aporte_investimento
-            equity_cedido = (aporte_investimento / valuation_post_money) * 100
-            st.write(f"- **Aporte Solicitado:** {format_br(aporte_investimento)}")
-            st.write(f"- **Valuation Post-Money:** {format_br(valuation_post_money)}")
-            st.write(f"- **Equity Cedido ao Investidor:** {format_pct_br(equity_cedido/100, 2)}")
-        else:
-            st.info("Insira um valor em 'Captação de Investimento' na barra lateral.")
-
-# 
-# ABA 4: ANÁLISE DE SENSIBILIDADE
-# 
-with tab4:
-    st.header("Análise de Sensibilidade (Matriz de Risco)")
-    st.markdown("Mapeamento dos limites de ruptura da operação cruzando variações na **Taxa de Churn** vs **Volume de Vendas Base**.")
-    st.subheader(f"Impacto no Caixa Final (Mês {meses_projecao})")
-    
-    variacoes_vendas = [-0.30, -0.15, 0.0, 0.15, 0.30] 
-    taxas_churn_simulacao = [0.005, 0.01, 0.015, 0.02, 0.03] 
-    vendas_base = params["vendas_mes"]
-    
-    indices_churn = [format_pct_br(c) for c in taxas_churn_simulacao]
-    colunas_vendas = [f"{int(v*100)}%" for v in variacoes_vendas]
-    matriz_caixa = pd.DataFrame(index=indices_churn, columns=colunas_vendas)
-    
-    for churn, idx_churn in zip(taxas_churn_simulacao, indices_churn):
-        for var_venda, col_venda in zip(variacoes_vendas, colunas_vendas):
-            params_sim = params.copy()
-            params_sim["churn_rate"] = churn
-            params_sim["vendas_mes"] = vendas_base * (1 + var_venda)
-            
-            df_sim = projetar_fluxo(
-                params_sim, meses_projecao, incluir_intersolar, lista_addons, 
-                aporte_investimento, mes_aporte, inflacao_cac_anual, 
-                inflacao_opex_anual, lista_gatilhos, opex_base_total, marketing_base,
-                incremento_semestral_vendas, intersolar_custo_ano1, intersolar_aumento_anual, 
-                intersolar_retorno_ano1, intersolar_eficiencia_anual
-            )
-            matriz_caixa.at[idx_churn, col_venda] = df_sim.iloc[-1]['Caixa Acumulado (R$)']
-
-    matriz_caixa = matriz_caixa.astype(float)
-    st.markdown("**Eixo Y:** Taxa de Churn Mensal | **Eixo X:** Variação no Volume de Vendas Base")
-    st.dataframe(matriz_caixa.style.format(lambda x: format_br(x, decimais=0)).background_gradient(cmap="RdYlGn", axis=None), use_container_width=True)
-
-# 
-# PAINEL ADMIN - SALVAR CENÁRIO (Movido para o final)
-# 
-if is_admin:
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("⚙️ Painel Admin (Visol)")
-    if st.sidebar.button("💾 Salvar Cenário Atual como Padrão"):
-        try:
-            supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
-            
-            # 1. Empacota todas as variáveis complexas num JSON
-            dados_extras_json = {
-                "incluir_addon": incluir_addon,
-                "num_addons": num_addons if incluir_addon else 0,
-                "lista_addons": lista_addons,
-                "incluir_intersolar": incluir_intersolar,
-                "intersolar_custo_ano1": intersolar_custo_ano1,
-                "intersolar_aumento_anual": intersolar_aumento_anual,
-                "intersolar_retorno_ano1": intersolar_retorno_ano1,
-                "intersolar_eficiencia_anual": intersolar_eficiencia_anual,
-                "opex_df": edited_opex.to_dict('records'),
-                "inflacao_opex_anual": inflacao_opex_anual,
-                "inflacao_cac_anual": inflacao_cac_anual,
-                "lista_gatilhos": lista_gatilhos,
-                "multiplo_arr": multiplo_arr,
-                "base_calculo": base_calculo
-            }
-            
-            # 2. Salva tudo no banco
-            novo_cenario = {
-                "nome_cenario": f"Cenário: {cenario_selecionado}",
-                "is_default": True,
-                "meses_projecao": meses_projecao,
-                "caixa_inicial": caixa_inicial,
-                "clientes_iniciais": clientes_iniciais,
-                "ticket_medio": def_ticket, 
-                "crescimento_vendas": incremento_semestral_vendas, 
-                "churn_mensal": params["churn_rate"], 
-                "inflacao_cac": def_inflacao_cac, 
-                "aporte_valor": aporte_investimento, 
-                "mes_aporte": mes_aporte,
-                "dados_extras": dados_extras_json
-            }
-            supabase.table("cenarios_visol").insert(novo_cenario).execute()
-            
-            carregar_cenario_padrao.clear()
-            st.sidebar.success("✅ Cenário salvo! Investidores agora verão exatamente estes números.")
-        except Exception as e:
-            st.sidebar.error(f"Erro ao salvar no banco: {e}")
+ 
