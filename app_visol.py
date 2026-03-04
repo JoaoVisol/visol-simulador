@@ -172,8 +172,8 @@ st.sidebar.subheader("⚙️ Painel Admin (Visol)")
 
 if st.sidebar.button("💾 Salvar Cenário Atual como Padrão"):
     try:
-        # 1. Remove o status de "padrão" de todos os cenários anteriores
-        supabase.table("cenarios_visol").update({"is_default": False}).neq("is_default", None).execute()
+        # 1. Remove o status de "padrão" apenas do cenário que atualmente é o padrão
+        supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
         
         # 2. Insere o novo cenário com os valores que estão na tela agora
         novo_cenario = {
@@ -183,7 +183,7 @@ if st.sidebar.button("💾 Salvar Cenário Atual como Padrão"):
             "caixa_inicial": caixa_inicial,
             "clientes_iniciais": clientes_iniciais,
             "ticket_medio": ticket_medio,
-            # Adicione aqui as outras variáveis que você quer salvar
+            # Certifique-se de listar as outras variáveis aqui
         }
         supabase.table("cenarios_visol").insert(novo_cenario).execute()
         
@@ -535,3 +535,4 @@ with tab4:
         .background_gradient(cmap="RdYlGn", axis=None),
         use_container_width=True
     )
+
