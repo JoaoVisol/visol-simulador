@@ -66,9 +66,9 @@ if not is_admin:
         </style>
     """, unsafe_allow_html=True)
 
-# ==========================================
+# 
 # CARREGAMENTO DE DADOS DO BANCO
-# ==========================================
+# 
 cenario_db = carregar_cenario_padrao()
 
 # Extrai o pacote JSON de dados extras (se existir)
@@ -79,11 +79,11 @@ def_meses = cenario_db["meses_projecao"] if cenario_db else 36
 def_caixa = float(cenario_db["caixa_inicial"]) if cenario_db else 8200.0
 def_clientes = cenario_db["clientes_iniciais"] if cenario_db else 77
 def_ticket = float(cenario_db["ticket_medio"]) if cenario_db else 300.0
-def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 10
+def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 0.10
 def_churn = float(cenario_db["churn_mensal"]) if cenario_db else 0.02
 def_inflacao_cac = float(cenario_db["inflacao_cac"]) if cenario_db else 0.05
 def_aporte = float(cenario_db["aporte_valor"]) if cenario_db else 500000.0
-def_mes_aporte = cenario_db["mes_aporte"] if cenario_db else 4
+def_mes_aporte = cenario_db["mes_aporte"] if cenario_db else 6
 
 # Variáveis Extras (JSON)
 def_incluir_addon = dados_extras.get("incluir_addon", True)
@@ -96,7 +96,7 @@ def_int_retorno = int(dados_extras.get("intersolar_retorno_ano1", 45))
 def_int_efic = float(dados_extras.get("intersolar_eficiencia_anual", 10.0))
 def_inf_opex = float(dados_extras.get("inflacao_opex_anual", def_inflacao_cac))
 def_inf_cac = float(dados_extras.get("inflacao_cac_anual", def_inflacao_cac))
-def_lista_gatilhos = dados_extras.get("lista_gatilhos", [{"nome": "Incremento Time", "clientes_alvo": 150, "valor": 4000.0}])
+def_lista_gatilhos = dados_extras.get("lista_gatilhos", [{"nome": "Analista CS 1", "clientes_alvo": 150, "valor": 4000.0}])
 
 # Variáveis de Valuation salvas no JSON
 def_multiplo_arr = float(dados_extras.get("multiplo_arr", 4.0))
@@ -137,10 +137,9 @@ parcela_emprestimo = 1365
 meses_restantes_emprestimo = 18 
 
 cenarios = {
-    "Pessimista": {"vendas_mes": 4, "arpa_novo": 150, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 0, "add_vendas": 0, "add_outros": 0},
-    "Realista (Foco Premium ARPA200)": {"vendas_mes": 8, "arpa_novo": 200, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 0, "add_outros": 0},
-    "Otimista (+vendas ARPA250)": {"vendas_mes": 12, "arpa_novo": 250, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 2000, "add_vendas": 1800, "add_outros": 3000},
-    "Com Investimento (+vendas ARPA300)": {"vendas_mes": 20, "arpa_novo": 300, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 3000, "add_vendas": 1800, "add_outros": 4000}
+    "Pessimista (Atual)": {"vendas_mes": 4, "arpa_novo": 150, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 0, "add_vendas": 0, "add_outros": 0},
+    "Realista (Foco Premium)": {"vendas_mes": 12, "arpa_novo": 200, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 0, "add_outros": 0},
+    "Otimista (Premium + Chat)": {"vendas_mes": 20, "arpa_novo": 250, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 3000}
 }
 
 nome_salvo = cenario_db["nome_cenario"].replace("Cenário: ", "") if cenario_db else "Pessimista (Atual)"
@@ -162,7 +161,7 @@ if incluir_addon:
     num_addons = st.sidebar.number_input("Quantidade de Produtos", min_value=1, max_value=5, value=safe_num_addons)
     
     for i in range(num_addons):
-        saved_addon = def_lista_addons[i] if i < len(def_lista_addons) else {}
+        saved_addon = def_lista_addons[i] if i &lt; len(def_lista_addons) else {}
         st.sidebar.markdown(f"**Produto {i+1}**")
         nome = st.sidebar.text_input(f"Nome", saved_addon.get("nome", f"Produto {i+1}"), key=f"nome_{i}")
         preco = st.sidebar.number_input(f"Preço por Cliente (R$)", value=float(saved_addon.get("preco", 50.0)), step=10.0, key=f"preco_{i}")
@@ -181,7 +180,6 @@ st.sidebar.header("4. Eventos e CAPEX (Intersolar)")
 incluir_intersolar = st.sidebar.checkbox("Participar da Intersolar (Anual)", value=def_incluir_intersolar)
 
 if incluir_intersolar:
-    # CORREÇÃO AQUI: Recupera os valores padrão caso o banco tenha salvo 0
     safe_int_custo = def_int_custo if def_int_custo > 0 else 35000.0
     safe_int_aumento = def_int_aumento if def_int_custo > 0 else 10000.0
     safe_int_retorno = def_int_retorno if def_int_custo > 0 else 45
@@ -204,9 +202,9 @@ mes_aporte = st.sidebar.number_input("Mês de Entrada do Aporte", min_value=1, m
 
 params = cenarios[cenario_selecionado]
 
-# ==========================================
+# 
 # ESTRUTURA DE ABAS CONDICIONAL E CUSTOS
-# ==========================================
+# 
 if is_admin:
     tab1, tab2, tab3, tab4 = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade"])
     
@@ -236,7 +234,7 @@ if is_admin:
         
         lista_gatilhos = []
         for i in range(num_gatilhos):
-            saved_gatilho = def_lista_gatilhos[i] if i < len(def_lista_gatilhos) else {}
+            saved_gatilho = def_lista_gatilhos[i] if i &lt; len(def_lista_gatilhos) else {}
             st.markdown(f"**Gatilho {i+1}**")
             cg1, cg2, cg3 = st.columns(3)
             with cg1:
@@ -272,26 +270,44 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
     clientes_addon_anterior = {i: 0 for i in range(len(lista_addons))}
     
     for mes in range(1, meses + 1):
+        
+        # --- NOVA LÓGICA DE RAMP-UP (4 MESES) E DELAY DE CUSTOS ---
+        vendas_baseline = 4.0
+        arpa_baseline = 150.0
+        
+        # Fator de Ramp-up: Mês 1 (0%), Mês 2 (33.3%), Mês 3 (66.6%), Mês 4+ (100%)
+        fator_rampup = min(1.0, (mes - 1) / 3.0)
+        
+        meta_vendas = params_simulacao["vendas_mes"]
+        meta_arpa = params_simulacao["arpa_novo"]
+        
+        vendas_ramped = vendas_baseline + (meta_vendas - vendas_baseline) * fator_rampup
+        arpa_ramped = arpa_baseline + (meta_arpa - arpa_baseline) * fator_rampup
+        
+        # Delay de Custos: 0 no Mês 1, 100% do Mês 2 em diante
+        fator_custo = 0 if mes == 1 else 1
+        add_mkt_ativo = params_simulacao["add_mkt"] * fator_custo
+        add_vendas_ativo = params_simulacao["add_vendas"] * fator_custo
+        add_outros_ativo = params_simulacao["add_outros"] * fator_custo
+        # 
+
         fator_eficiencia_comercial = (1 + (incremento_semestral_vendas / 100)) ** ((mes - 1) // 6)
-        vendas_base_mes = params_simulacao["vendas_mes"] * fator_eficiencia_comercial
+        vendas_base_mes = vendas_ramped * fator_eficiencia_comercial
         
         saida_capex = 0
         clientes_extras_intersolar = 0
         
         if incluir_intersolar:
-            if mes >= 6 and (mes - 6) % 12 == 0:
-                ano_evento = (mes - 6) // 12
+            if mes >= 9 and (mes - 9) % 12 == 0:
+                ano_evento = (mes - 9) // 12
                 saida_capex = intersolar_custo_ano1 + (ano_evento * intersolar_aumento_anual)
             
-            if mes >= 7:
-                mes_pos_evento = (mes - 7) % 12
-                if mes_pos_evento < 3:
-                    ano_evento_retorno = (mes - 7) // 12
+            if mes >= 10:
+                mes_pos_evento = (mes - 10) % 12
+                if mes_pos_evento &lt; 3:
+                    ano_evento_retorno = (mes - 10) // 12
                     custo_evento_ref = intersolar_custo_ano1 + (ano_evento_retorno * intersolar_aumento_anual)
-                    
-                    # CORREÇÃO AQUI: Proteção matemática contra divisão por zero
                     razao_custo = (custo_evento_ref / intersolar_custo_ano1) if intersolar_custo_ano1 > 0 else 1.0
-                    
                     retorno_total = intersolar_retorno_ano1 * razao_custo * ((1 + (intersolar_eficiencia_anual/100)) ** ano_evento_retorno)
                     clientes_extras_intersolar = retorno_total / 3 
                     
@@ -299,7 +315,8 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         clientes_churn = clientes_atuais * params_simulacao["churn_rate"]
         clientes_atuais = clientes_atuais + novos_clientes - clientes_churn
         
-        novo_mrr_core = novos_clientes * params_simulacao["arpa_novo"]
+        # Usa o ARPA com ramp-up
+        novo_mrr_core = novos_clientes * arpa_ramped
         mrr_churn = clientes_churn * (mrr_atual / max(clientes_atuais, 1))
         mrr_atual = mrr_atual + novo_mrr_core - mrr_churn
         
@@ -324,9 +341,9 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         impostos = receita_bruta * 0.06
         novo_mrr_total_comissionavel = novo_mrr_core + novo_mrr_addons_total
         
-        if novos_clientes <= 4:
+        if novos_clientes &lt;= 4:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.0) + (receita_implementacao * 0.1)
-        elif novos_clientes <= 6:
+        elif novos_clientes &lt;= 6:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.20) + (receita_implementacao * 0.15)
         else:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.40) + (receita_implementacao * 0.20)
@@ -342,18 +359,22 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
             multiplicador = int(clientes_atuais // gatilho["clientes_alvo"])
             opex_gatilhos += multiplicador * gatilho["valor"]
             
-        opex_total = opex_base_mes + params_simulacao["add_mkt"] + params_simulacao["add_vendas"] + params_simulacao["add_outros"] + opex_gatilhos
-        saida_emprestimo = parcela_emprestimo if mes <= meses_restantes_emprestimo else 0
+        # Usa os custos ativos (com delay)
+        opex_total = opex_base_mes + add_mkt_ativo + add_vendas_ativo + add_outros_ativo + opex_gatilhos
+        saida_emprestimo = parcela_emprestimo if mes &lt;= meses_restantes_emprestimo else 0
         
         saidas_totais = opex_total + impostos + comissao_paga_mes + saida_emprestimo + saida_capex
         fluxo_mes = receita_bruta + entrada_fomento + entrada_aporte - saidas_totais
         caixa_atual += fluxo_mes
         
         fator_inflacao_cac = (1 + (inflacao_cac_anual / 100)) ** (mes / 12)
-        custo_marketing_mes = (marketing_base + params_simulacao["add_mkt"]) * fator_inflacao_cac
+        
+        # Usa o add_mkt_ativo
+        custo_marketing_mes = (marketing_base + add_mkt_ativo) * fator_inflacao_cac
         if saida_capex > 0: custo_marketing_mes += saida_capex
             
-        custo_vendas = comissao_total_gerada + params_simulacao["add_vendas"]
+        # Usa o add_vendas_ativo
+        custo_vendas = comissao_total_gerada + add_vendas_ativo
         cac = (custo_marketing_mes + custo_vendas) / novos_clientes if novos_clientes > 0 else 0
         arpa_blended = mrr_total_mes / clientes_atuais if clientes_atuais > 0 else 0
         
@@ -381,9 +402,9 @@ df_projecao = projetar_fluxo(
     intersolar_retorno_ano1, intersolar_eficiencia_anual
 )
 
-# ==========================================
+# 
 # ABA 1: PROJEÇÕES FINANCEIRAS
-# ==========================================
+# 
 with tab1:
     st.header(f"Projeção: Cenário {cenario_selecionado}")
 
@@ -429,9 +450,9 @@ with tab1:
     csv_data = df_projecao.to_csv(index=False).encode('utf-8')
     st.download_button(label="Baixar DRE Projetado (CSV)", data=csv_data, file_name=f"visol_projecao_{cenario_selecionado.split()[0].lower()}.csv", mime="text/csv")
 
-# ==========================================
+# 
 # ABA 2: VALUATION SAAS
-# ==========================================
+# 
 with tab2:
     st.header("Valuation da Visol (Método de Múltiplos de ARR)")
     
@@ -470,9 +491,9 @@ with tab2:
         else:
             st.info("Insira um valor em 'Captação de Investimento' na barra lateral.")
 
-# ==========================================
+# 
 # ABA 4: ANÁLISE DE SENSIBILIDADE
-# ==========================================
+# 
 with tab4:
     st.header("Análise de Sensibilidade (Matriz de Risco)")
     st.markdown("Mapeamento dos limites de ruptura da operação cruzando variações na **Taxa de Churn** vs **Volume de Vendas Base**.")
@@ -505,9 +526,9 @@ with tab4:
     st.markdown("**Eixo Y:** Taxa de Churn Mensal | **Eixo X:** Variação no Volume de Vendas Base")
     st.dataframe(matriz_caixa.style.format(lambda x: format_br(x, decimais=0)).background_gradient(cmap="RdYlGn", axis=None), use_container_width=True)
 
-# ==========================================
+# 
 # PAINEL ADMIN - SALVAR CENÁRIO (Movido para o final)
-# ==========================================
+# 
 if is_admin:
     st.sidebar.markdown("---")
     st.sidebar.subheader("⚙️ Painel Admin (Visol)")
@@ -554,6 +575,3 @@ if is_admin:
             st.sidebar.success("✅ Cenário salvo! Investidores agora verão exatamente estes números.")
         except Exception as e:
             st.sidebar.error(f"Erro ao salvar no banco: {e}")
-
-
-
