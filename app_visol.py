@@ -137,9 +137,10 @@ parcela_emprestimo = 1365
 meses_restantes_emprestimo = 18 
 
 cenarios = {
-    "Pessimista (Atual)": {"vendas_mes": 4, "arpa_novo": 150, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 0, "add_vendas": 0, "add_outros": 0},
-    "Realista (Foco Premium)": {"vendas_mes": 12, "arpa_novo": 200, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 0, "add_outros": 0},
-    "Otimista (Premium + Chat)": {"vendas_mes": 20, "arpa_novo": 250, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 3000}
+    "Pessimista": {"vendas_mes": 4, "arpa_novo": 150, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 0, "add_vendas": 0, "add_outros": 0},
+    "Realista (Foco Premium ARPA200)": {"vendas_mes": 8, "arpa_novo": 200, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 0, "add_outros": 0},
+    "Otimista (+vendas ARPA250)": {"vendas_mes": 12, "arpa_novo": 250, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 2000, "add_vendas": 1800, "add_outros": 3000},
+    "Com Investimento (+vendas ARPA300)": {"vendas_mes": 20, "arpa_novo": 300, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 3000, "add_vendas": 1800, "add_outros": 4000}
 }
 
 nome_salvo = cenario_db["nome_cenario"].replace("Cenário: ", "") if cenario_db else "Pessimista (Atual)"
@@ -553,5 +554,6 @@ if is_admin:
             st.sidebar.success("✅ Cenário salvo! Investidores agora verão exatamente estes números.")
         except Exception as e:
             st.sidebar.error(f"Erro ao salvar no banco: {e}")
+
 
 
