@@ -79,7 +79,7 @@ def_meses = cenario_db["meses_projecao"] if cenario_db else 36
 def_caixa = float(cenario_db["caixa_inicial"]) if cenario_db else 8200.0
 def_clientes = cenario_db["clientes_iniciais"] if cenario_db else 77
 def_ticket = float(cenario_db["ticket_medio"]) if cenario_db else 300.0
-def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 0.10
+def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 10
 def_churn = float(cenario_db["churn_mensal"]) if cenario_db else 0.02
 def_inflacao_cac = float(cenario_db["inflacao_cac"]) if cenario_db else 0.05
 def_aporte = float(cenario_db["aporte_valor"]) if cenario_db else 500000.0
@@ -137,12 +137,13 @@ parcela_emprestimo = 1365
 meses_restantes_emprestimo = 18 
 
 cenarios = {
-    "Pessimista (Atual)": {"vendas_mes": 4, "arpa_novo": 150, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 0, "add_vendas": 0, "add_outros": 0},
-    "Realista (Foco Premium)": {"vendas_mes": 12, "arpa_novo": 200, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 0, "add_outros": 0},
-    "Otimista (Premium + Chat)": {"vendas_mes": 20, "arpa_novo": 250, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 3000}
+    "Pessimista": {"vendas_mes": 4, "arpa_novo": 150, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 0, "add_vendas": 0, "add_outros": 0},
+    "Realista (Premium ARPA200)": {"vendas_mes": 8, "arpa_novo": 200, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 0, "add_outros": 0},
+    "Otimista (Premium ARPA250)": {"vendas_mes": 12, "arpa_novo": 250, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 4000},
+    "Com investimento (Premium + Chat ARPA300)": {"vendas_mes": 20, "arpa_novo": 300, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 4500}
 }
 
-nome_salvo = cenario_db["nome_cenario"].replace("Cenário: ", "") if cenario_db else "Pessimista (Atual)"
+nome_salvo = cenario_db["nome_cenario"].replace("Cenário: ", "") if cenario_db else "Pessimista"
 opcoes_cenarios = list(cenarios.keys())
 index_salvo = opcoes_cenarios.index(nome_salvo) if nome_salvo in opcoes_cenarios else 0
 
@@ -297,14 +298,14 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         clientes_extras_intersolar = 0
         
         if incluir_intersolar:
-            if mes >= 9 and (mes - 9) % 12 == 0:
-                ano_evento = (mes - 9) // 12
+            if mes >= 6 and (mes - 6) % 12 == 0:
+                ano_evento = (mes - 6) // 12
                 saida_capex = intersolar_custo_ano1 + (ano_evento * intersolar_aumento_anual)
             
-            if mes >= 10:
-                mes_pos_evento = (mes - 10) % 12
+            if mes >= 7:
+                mes_pos_evento = (mes - 7) % 12
                 if mes_pos_evento > 3:
-                    ano_evento_retorno = (mes - 10) // 12
+                    ano_evento_retorno = (mes - 7) // 12
                     custo_evento_ref = intersolar_custo_ano1 + (ano_evento_retorno * intersolar_aumento_anual)
                     razao_custo = (custo_evento_ref / intersolar_custo_ano1) if intersolar_custo_ano1 > 0 else 1.0
                     retorno_total = intersolar_retorno_ano1 * razao_custo * ((1 + (intersolar_eficiencia_anual/100)) ** ano_evento_retorno)
@@ -340,9 +341,9 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         impostos = receita_bruta * 0.06
         novo_mrr_total_comissionavel = novo_mrr_core + novo_mrr_addons_total
         
-        if novos_clientes >= 4:
+        if novos_clientes < 4:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.0) + (receita_implementacao * 0.1)
-        elif novos_clientes >= 6:
+        elif novos_clientes < 6:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.20) + (receita_implementacao * 0.15)
         else:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.40) + (receita_implementacao * 0.20)
@@ -574,4 +575,5 @@ if is_admin:
             st.sidebar.success("✅ Cenário salvo! Investidores agora verão exatamente estes números.")
         except Exception as e:
             st.sidebar.error(f"Erro ao salvar no banco: {e}")
+
 
