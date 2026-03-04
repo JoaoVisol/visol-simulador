@@ -180,6 +180,7 @@ st.sidebar.header("4. Eventos e CAPEX (Intersolar)")
 incluir_intersolar = st.sidebar.checkbox("Participar da Intersolar (Anual)", value=def_incluir_intersolar)
 
 if incluir_intersolar:
+    # CORREÇÃO AQUI: Recupera os valores padrão caso o banco tenha salvo 0
     safe_int_custo = def_int_custo if def_int_custo > 0 else 35000.0
     safe_int_aumento = def_int_aumento if def_int_custo > 0 else 10000.0
     safe_int_retorno = def_int_retorno if def_int_custo > 0 else 45
@@ -270,29 +271,8 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
     clientes_addon_anterior = {i: 0 for i in range(len(lista_addons))}
     
     for mes in range(1, meses + 1):
-        
-        # --- NOVA LÓGICA DE RAMP-UP (4 MESES) E DELAY DE CUSTOS ---
-        vendas_baseline = 4.0
-        arpa_baseline = 150.0
-        
-        # Fator de Ramp-up: Mês 1 (0%), Mês 2 (33.3%), Mês 3 (66.6%), Mês 4+ (100%)
-        fator_rampup = min(1.0, (mes - 1) / 3.0)
-        
-        meta_vendas = params_simulacao["vendas_mes"]
-        meta_arpa = params_simulacao["arpa_novo"]
-        
-        vendas_ramped = vendas_baseline + (meta_vendas - vendas_baseline) * fator_rampup
-        arpa_ramped = arpa_baseline + (meta_arpa - arpa_baseline) * fator_rampup
-        
-        # Delay de Custos: 0 no Mês 1, 100% do Mês 2 em diante
-        fator_custo = 0 if mes == 1 else 1
-        add_mkt_ativo = params_simulacao["add_mkt"] * fator_custo
-        add_vendas_ativo = params_simulacao["add_vendas"] * fator_custo
-        add_outros_ativo = params_simulacao["add_outros"] * fator_custo
-        # 
-
         fator_eficiencia_comercial = (1 + (incremento_semestral_vendas / 100)) ** ((mes - 1) // 6)
-        vendas_base_mes = vendas_ramped * fator_eficiencia_comercial
+        vendas_base_mes = params_simulacao["vendas_mes"] * fator_eficiencia_comercial
         
         saida_capex = 0
         clientes_extras_intersolar = 0
@@ -307,7 +287,10 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
                 if mes_pos_evento &lt; 3:
                     ano_evento_retorno = (mes - 10) // 12
                     custo_evento_ref = intersolar_custo_ano1 + (ano_evento_retorno * intersolar_aumento_anual)
+                    
+                    # CORREÇÃO AQUI: Proteção matemática contra divisão por zero
                     razao_custo = (custo_evento_ref / intersolar_custo_ano1) if intersolar_custo_ano1 > 0 else 1.0
+                    
                     retorno_total = intersolar_retorno_ano1 * razao_custo * ((1 + (intersolar_eficiencia_anual/100)) ** ano_evento_retorno)
                     clientes_extras_intersolar = retorno_total / 3 
                     
@@ -315,8 +298,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         clientes_churn = clientes_atuais * params_simulacao["churn_rate"]
         clientes_atuais = clientes_atuais + novos_clientes - clientes_churn
         
-        # Usa o ARPA com ramp-up
-        novo_mrr_core = novos_clientes * arpa_ramped
+        novo_mrr_core = novos_clientes * params_simulacao["arpa_novo"]
         mrr_churn = clientes_churn * (mrr_atual / max(clientes_atuais, 1))
         mrr_atual = mrr_atual + novo_mrr_core - mrr_churn
         
@@ -359,8 +341,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
             multiplicador = int(clientes_atuais // gatilho["clientes_alvo"])
             opex_gatilhos += multiplicador * gatilho["valor"]
             
-        # Usa os custos ativos (com delay)
-        opex_total = opex_base_mes + add_mkt_ativo + add_vendas_ativo + add_outros_ativo + opex_gatilhos
+        opex_total = opex_base_mes + params_simulacao["add_mkt"] + params_simulacao["add_vendas"] + params_simulacao["add_outros"] + opex_gatilhos
         saida_emprestimo = parcela_emprestimo if mes &lt;= meses_restantes_emprestimo else 0
         
         saidas_totais = opex_total + impostos + comissao_paga_mes + saida_emprestimo + saida_capex
@@ -368,13 +349,10 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         caixa_atual += fluxo_mes
         
         fator_inflacao_cac = (1 + (inflacao_cac_anual / 100)) ** (mes / 12)
-        
-        # Usa o add_mkt_ativo
-        custo_marketing_mes = (marketing_base + add_mkt_ativo) * fator_inflacao_cac
+        custo_marketing_mes = (marketing_base + params_simulacao["add_mkt"]) * fator_inflacao_cac
         if saida_capex > 0: custo_marketing_mes += saida_capex
             
-        # Usa o add_vendas_ativo
-        custo_vendas = comissao_total_gerada + add_vendas_ativo
+        custo_vendas = comissao_total_gerada + params_simulacao["add_vendas"]
         cac = (custo_marketing_mes + custo_vendas) / novos_clientes if novos_clientes > 0 else 0
         arpa_blended = mrr_total_mes / clientes_atuais if clientes_atuais > 0 else 0
         
