@@ -555,7 +555,7 @@ with tab4:
     st.dataframe(matriz_caixa.style.format(lambda x: format_br(x, decimais=0)).background_gradient(cmap="RdYlGn", axis=None), use_container_width=True)
 
 # 
-# PAINEL ADMIN - SALVAR CENÁRIO (MULTI-SAVE)
+# PAINEL ADMIN - SALVAR E EXCLUIR CENÁRIO (MULTI-SAVE)
 # 
 if is_admin:
     st.sidebar.markdown("---")
@@ -565,7 +565,7 @@ if is_admin:
     nome_simulacao = st.sidebar.text_input("Nome da Simulação", value=simulacao_escolhida if nomes_salvos else "Nova Simulação")
     
     # Checkbox para definir se o investidor vai ver isso
-    is_investor_default = st.sidebar.checkbox("🌟 Definir como visão do Investidor", value=False)
+    is_investor_default = st.sidebar.checkbox("🌟 Definir como visão do Investidor", value=cenario_db.get("is_default", False) if cenario_db else False)
     
     if st.sidebar.button("Salvar Cenário no Banco"):
         try:
@@ -619,3 +619,19 @@ if is_admin:
             st.rerun() # Recarrega a tela para atualizar o dropdown
         except Exception as e:
             st.sidebar.error(f"Erro ao salvar no banco: {e}")
+
+    # --- NOVA FUNÇÃO DE EXCLUSÃO ---
+    if simulacao_escolhida != "Nova Simulação" and cenario_db:
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("🗑️ Zona de Perigo")
+        if st.sidebar.button(f"Excluir '{simulacao_escolhida}'", type="primary"):
+            try:
+                # Alerta visual caso esteja excluindo a visão do investidor
+                if cenario_db.get("is_default"):
+                    st.sidebar.warning("⚠️ Você excluiu a visão atual do investidor. Defina outro cenário como padrão.")
+                
+                supabase.table("cenarios_visol").delete().eq("nome_cenario", simulacao_escolhida).execute()
+                carregar_cenarios_db.clear()
+                st.rerun()
+            except Exception as e:
+                st.sidebar.error(f"Erro ao excluir no banco: {e}")
