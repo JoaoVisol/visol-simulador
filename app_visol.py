@@ -28,29 +28,48 @@ def carregar_cenario_padrao():
 
 # --- TELA DE LOGIN (BARREIRA DE SEGURANÇA) ---
 def check_password():
-    """Retorna True se o usuário inseriu a senha correta."""
+    """Retorna True se o usuário inseriu uma senha válida e define o nível de acesso."""
     def password_entered():
-        # Verifica se a senha digitada bate com a senha configurada no servidor (secrets)
-        if st.session_state["password"] == st.secrets["senha_visol"]:
+        senha_digitada = st.session_state["password"]
+        
+        # Verifica se é o Admin (Você)
+        if senha_digitada == st.secrets["senha_visol"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Apaga a senha da memória por segurança
+            st.session_state["role"] = "admin"
+            del st.session_state["password"]
+            
+        # Verifica se é o Investidor
+        elif "senha_investidor" in st.secrets and senha_digitada == st.secrets["senha_investidor"]:
+            st.session_state["password_correct"] = True
+            st.session_state["role"] = "investor"
+            del st.session_state["password"]
+            
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # Primeira vez que o usuário acessa: mostra o campo de senha
         st.text_input("🔑 Digite a senha de acesso (Data Room Visol):", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        # Senha errada: mostra o campo novamente com mensagem de erro
         st.text_input("🔑 Digite a senha de acesso (Data Room Visol):", type="password", on_change=password_entered, key="password")
         st.error("Senha incorreta. Tente novamente.")
         return False
     return True
 
-# Se a senha não for validada, o código PARA aqui e não carrega o painel financeiro
 if not check_password():
     st.stop()
+
+# Define a variável global de permissão
+is_admin = st.session_state.get("role") == "admin"
+
+# Se for investidor, injeta CSS para esconder a barra lateral completamente
+if not is_admin:
+    st.markdown("""
+        <style>
+            [data-testid="collapsedControl"] {display: none;}
+            [data-testid="stSidebar"] {display: none;}
+        </style>
+    """, unsafe_allow_html=True)
 
 # ==========================================
 # O RESTANTE DO CÓDIGO SÓ RODA SE A SENHA ESTIVER CORRETA
@@ -170,84 +189,107 @@ params = cenarios[cenario_selecionado]
 st.sidebar.markdown("---")
 st.sidebar.subheader("⚙️ Painel Admin (Visol)")
 
-if st.sidebar.button("💾 Salvar Cenário Atual como Padrão"):
-    try:
-        # 1. Remove o status de "padrão" apenas do cenário que atualmente é o padrão
-        supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
-        
-        # 2. Insere o novo cenário mapeando as variáveis corretas do seu código
-        novo_cenario = {
-            "nome_cenario": f"Cenário: {cenario_selecionado}",
-            "is_default": True,
-            "meses_projecao": meses_projecao,
-            "caixa_inicial": caixa_inicial,
-            "clientes_iniciais": clientes_iniciais,
-            "ticket_medio": def_ticket, # Usa o valor default do banco/topo do código
-            "crescimento_vendas": incremento_semestral_vendas, # Pega do seu input da sidebar
-            "churn_mensal": params["churn_rate"], # Pega do dicionário do cenário selecionado
-            "inflacao_cac": def_inflacao_cac, # Usa o valor default
-            "aporte_valor": aporte_investimento, # Pega do seu input da sidebar
-            "mes_aporte": mes_aporte # Pega do seu input da sidebar
-        }
-        supabase.table("cenarios_visol").insert(novo_cenario).execute()
-        
-        # Limpa o cache para forçar a leitura dos novos dados
-        carregar_cenario_padrao.clear()
-        st.sidebar.success("✅ Cenário salvo! Investidores agora verão estes números.")
-    except Exception as e:
-        st.sidebar.error(f"Erro ao salvar no banco: {e}")
+st.sidebar.markdown("---")
 
-# --- ESTRUTURA DE ABAS (TABS) ---
-tab1, tab2, tab3, tab4 = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade"])
-
-# ==========================================
-# ABA 3: GESTÃO DE CUSTOS (Inputs do Motor)
-# ==========================================
-with tab3:
-    st.header("Gestão de Custos e Alavancagem Operacional")
-    
-    st.subheader("1. Custos Operacionais Base (OPEX)")
-    default_opex = pd.DataFrame({
-        "Categoria": ["Folha de Pagamento", "GSuite (Equipe)", "Google Cloud", "Integrações", "IA", "Contabilidade", "Marketing", "Viagens/Extraordinárias", "Servidores (Rateio)"],
-        "Valor Mensal (R$)": [15800.00, 349.30, 90.00, 1000.00, 319.90, 300.00, 1500.00, 600.00, 70.42]
-    })
-    
-    edited_opex = st.data_editor(default_opex, num_rows="dynamic", use_container_width=True)
-    opex_base_total = edited_opex["Valor Mensal (R$)"].sum()
-    
-    marketing_row = edited_opex[edited_opex["Categoria"].str.contains("Marketing", case=False, na=False)]
-    marketing_base = marketing_row["Valor Mensal (R$)"].sum() if not marketing_row.empty else 0.0
-    
-    st.metric("OPEX Base Total", format_br(opex_base_total))
-    
-    st.markdown("---")
-    st.subheader("2. Reajustes e Inflação")
-    col_inf1, col_inf2 = st.columns(2)
-    with col_inf1:
-        inflacao_opex_anual = st.number_input("Reajuste Anual do OPEX (IPCA/Dissídio) %", min_value=0.0, value=def_inflacao_cac, step=1.0)
-    with col_inf2:
-        inflacao_cac_anual = st.number_input("Degradação Anual do CAC (%)", min_value=0.0, value=def_inflacao_cac, step=1.0)
-        
-    st.markdown("---")
-    st.subheader("3. Gatilhos de OPEX (Step-Functions)")
-    num_gatilhos = st.number_input("Quantidade de Gatilhos", min_value=0, max_value=5, value=1)
-    
-    lista_gatilhos = []
-    for i in range(num_gatilhos):
-        st.markdown(f"**Gatilho {i+1}**")
-        cg1, cg2, cg3 = st.columns(3)
-        with cg1:
-            nome_gatilho = st.text_input("Descrição", f"Analista CS {i+1}", key=f"gatilho_nome_{i}")
-        with cg2:
-            clientes_alvo = st.number_input("A cada X clientes", min_value=1, value=150, key=f"gatilho_clientes_{i}")
-        with cg3:
-            valor_gatilho = st.number_input("Adicionar (R$)", min_value=0.0, value=4000.0, step=500.0, key=f"gatilho_valor_{i}")
+# Garante que apenas o Admin veja e possa clicar no botão
+if is_admin:
+    st.sidebar.subheader("⚙️ Painel Admin (Visol)")
+    if st.sidebar.button("💾 Salvar Cenário Atual como Padrão"):
+        try:
+            # 1. Remove o status de "padrão" apenas do cenário que atualmente é o padrão
+            supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
             
-        lista_gatilhos.append({
-            "nome": nome_gatilho,
-            "clientes_alvo": clientes_alvo,
-            "valor": valor_gatilho
-        })
+            # 2. Insere o novo cenário mapeando as variáveis corretas do seu código
+            novo_cenario = {
+                "nome_cenario": f"Cenário: {cenario_selecionado}",
+                "is_default": True,
+                "meses_projecao": meses_projecao,
+                "caixa_inicial": caixa_inicial,
+                "clientes_iniciais": clientes_iniciais,
+                "ticket_medio": def_ticket, 
+                "crescimento_vendas": incremento_semestral_vendas, 
+                "churn_mensal": params["churn_rate"], 
+                "inflacao_cac": def_inflacao_cac, 
+                "aporte_valor": aporte_investimento, 
+                "mes_aporte": mes_aporte 
+            }
+            supabase.table("cenarios_visol").insert(novo_cenario).execute()
+            
+            # Limpa o cache para forçar a leitura dos novos dados
+            carregar_cenario_padrao.clear()
+            st.sidebar.success("✅ Cenário salvo! Investidores agora verão estes números.")
+        except Exception as e:
+            st.sidebar.error(f"Erro ao salvar no banco: {e}")
+
+# ==========================================
+# VARIÁVEIS DE CUSTOS BASE (Carregadas na memória para o motor funcionar)
+# ==========================================
+default_opex = pd.DataFrame({
+    "Categoria": ["Folha de Pagamento", "GSuite (Equipe)", "Google Cloud", "Integrações", "IA", "Contabilidade", "Marketing", "Viagens/Extraordinárias", "Servidores (Rateio)"],
+    "Valor Mensal (R$)": [15800.00, 349.30, 90.00, 1000.00, 319.90, 300.00, 1500.00, 600.00, 70.42]
+})
+
+# Valores padrão que o motor vai usar se o usuário for investidor (já que ele não pode editar)
+edited_opex = default_opex
+opex_base_total = edited_opex["Valor Mensal (R$)"].sum()
+marketing_row = edited_opex[edited_opex["Categoria"].str.contains("Marketing", case=False, na=False)]
+marketing_base = marketing_row["Valor Mensal (R$)"].sum() if not marketing_row.empty else 0.0
+inflacao_opex_anual = def_inflacao_cac
+inflacao_cac_anual = def_inflacao_cac
+lista_gatilhos = [{"nome": "Analista CS 1", "clientes_alvo": 150, "valor": 4000.0}]
+
+# ==========================================
+# ESTRUTURA DE ABAS CONDICIONAL (RBAC)
+# ==========================================
+if is_admin:
+    # Admin vê as 4 abas
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade"])
+    
+    # ABA 3: GESTÃO DE CUSTOS (Visível apenas para Admin)
+    with tab3:
+        st.header("Gestão de Custos e Alavancagem Operacional")
+        
+        st.subheader("1. Custos Operacionais Base (OPEX)")
+        # Sobrescreve as variáveis padrão com os inputs da tela editável
+        edited_opex = st.data_editor(default_opex, num_rows="dynamic", use_container_width=True)
+        opex_base_total = edited_opex["Valor Mensal (R$)"].sum()
+        
+        marketing_row = edited_opex[edited_opex["Categoria"].str.contains("Marketing", case=False, na=False)]
+        marketing_base = marketing_row["Valor Mensal (R$)"].sum() if not marketing_row.empty else 0.0
+        
+        st.metric("OPEX Base Total", format_br(opex_base_total))
+        
+        st.markdown("---")
+        st.subheader("2. Reajustes e Inflação")
+        col_inf1, col_inf2 = st.columns(2)
+        with col_inf1:
+            inflacao_opex_anual = st.number_input("Reajuste Anual do OPEX (IPCA/Dissídio) %", min_value=0.0, value=def_inflacao_cac, step=1.0)
+        with col_inf2:
+            inflacao_cac_anual = st.number_input("Degradação Anual do CAC (%)", min_value=0.0, value=def_inflacao_cac, step=1.0)
+            
+        st.markdown("---")
+        st.subheader("3. Gatilhos de OPEX (Step-Functions)")
+        num_gatilhos = st.number_input("Quantidade de Gatilhos", min_value=0, max_value=5, value=1)
+        
+        lista_gatilhos = []
+        for i in range(num_gatilhos):
+            st.markdown(f"**Gatilho {i+1}**")
+            cg1, cg2, cg3 = st.columns(3)
+            with cg1:
+                nome_gatilho = st.text_input("Descrição", f"Analista CS {i+1}", key=f"gatilho_nome_{i}")
+            with cg2:
+                clientes_alvo = st.number_input("A cada X clientes", min_value=1, value=150, key=f"gatilho_clientes_{i}")
+            with cg3:
+                valor_gatilho = st.number_input("Adicionar (R$)", min_value=0.0, value=4000.0, step=500.0, key=f"gatilho_valor_{i}")
+                
+            lista_gatilhos.append({
+                "nome": nome_gatilho,
+                "clientes_alvo": clientes_alvo,
+                "valor": valor_gatilho
+            })
+else:
+    # Investidor vê apenas 3 abas (tab3 é omitida da interface, mas as variáveis já foram carregadas acima)
+    tab1, tab2, tab4 = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "🌪️ Análise de Sensibilidade"])
 
 # --- MOTOR DE PROJEÇÃO FINANCEIRA ---
 def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, aporte_investimento, mes_aporte, 
@@ -539,5 +581,6 @@ with tab4:
         .background_gradient(cmap="RdYlGn", axis=None),
         use_container_width=True
     )
+
 
 
