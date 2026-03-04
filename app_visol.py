@@ -79,7 +79,7 @@ def_meses = cenario_db["meses_projecao"] if cenario_db else 36
 def_caixa = float(cenario_db["caixa_inicial"]) if cenario_db else 8200.0
 def_clientes = cenario_db["clientes_iniciais"] if cenario_db else 77
 def_ticket = float(cenario_db["ticket_medio"]) if cenario_db else 300.0
-def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 0.10
+def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 10
 def_churn = float(cenario_db["churn_mensal"]) if cenario_db else 0.02
 def_inflacao_cac = float(cenario_db["inflacao_cac"]) if cenario_db else 0.05
 def_aporte = float(cenario_db["aporte_valor"]) if cenario_db else 500000.0
@@ -341,9 +341,9 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         impostos = receita_bruta * 0.06
         novo_mrr_total_comissionavel = novo_mrr_core + novo_mrr_addons_total
         
-        if novos_clientes <= 4:
+        if novos_clientes < 4:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.0) + (receita_implementacao * 0.1)
-        elif novos_clientes <= 6:
+        elif novos_clientes < 6:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.20) + (receita_implementacao * 0.15)
         else:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.40) + (receita_implementacao * 0.20)
@@ -575,3 +575,4 @@ if is_admin:
             st.sidebar.success("✅ Cenário salvo! Investidores agora verão exatamente estes números.")
         except Exception as e:
             st.sidebar.error(f"Erro ao salvar no banco: {e}")
+
