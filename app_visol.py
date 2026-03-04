@@ -289,7 +289,6 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         add_mkt_ativo = params_simulacao["add_mkt"] * fator_custo
         add_vendas_ativo = params_simulacao["add_vendas"] * fator_custo
         add_outros_ativo = params_simulacao["add_outros"] * fator_custo
-        # 
 
         fator_eficiencia_comercial = (1 + (incremento_semestral_vendas / 100)) ** ((mes - 1) // 6)
         vendas_base_mes = vendas_ramped * fator_eficiencia_comercial
