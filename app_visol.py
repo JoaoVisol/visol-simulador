@@ -98,6 +98,10 @@ def_inf_opex = float(dados_extras.get("inflacao_opex_anual", def_inflacao_cac))
 def_inf_cac = float(dados_extras.get("inflacao_cac_anual", def_inflacao_cac))
 def_lista_gatilhos = dados_extras.get("lista_gatilhos", [{"nome": "Analista CS 1", "clientes_alvo": 150, "valor": 4000.0}])
 
+# Variáveis de Valuation salvas no JSON
+def_multiplo_arr = float(dados_extras.get("multiplo_arr", 4.0))
+def_base_calculo = dados_extras.get("base_calculo", "ARR Projetado (Forward)")
+
 # Tabela OPEX salva no banco
 default_opex_data = dados_extras.get("opex_df", [
     {"Categoria": "Folha de Pagamento", "Valor Mensal (R$)": 15800.00},
@@ -433,8 +437,13 @@ with tab2:
     
     with col_val1:
         st.markdown("**Definição do Múltiplo**")
-        multiplo_arr = st.slider("Múltiplo de ARR Aplicado", 1.0, 15.0, 4.0, 0.5, disabled=not is_admin)
-        base_calculo = st.radio("Base do ARR", ["ARR Atual (Trailing)", "ARR Projetado (Forward)"], index=1, disabled=not is_admin)
+        
+        # O slider agora nasce com o valor salvo no banco (def_multiplo_arr)
+        multiplo_arr = st.slider("Múltiplo de ARR Aplicado", 1.0, 15.0, def_multiplo_arr, 0.5, disabled=not is_admin)
+        
+        # O radio agora nasce com a seleção salva no banco
+        index_base = 1 if def_base_calculo == "ARR Projetado (Forward)" else 0
+        base_calculo = st.radio("Base do ARR", ["ARR Atual (Trailing)", "ARR Projetado (Forward)"], index=index_base, disabled=not is_admin)
         
         arr_base = arr_projetado if base_calculo == "ARR Projetado (Forward)" else arr_atual
         valuation_pre_money = arr_base * multiplo_arr
@@ -496,7 +505,7 @@ if is_admin:
         try:
             supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
             
-            # 1. Empacota todas as variáveis complexas num JSON
+            # 1. Empacota todas as variáveis complexas num JSON (agora incluindo Valuation)
             dados_extras_json = {
                 "incluir_addon": incluir_addon,
                 "num_addons": num_addons if incluir_addon else 0,
@@ -506,10 +515,12 @@ if is_admin:
                 "intersolar_aumento_anual": intersolar_aumento_anual,
                 "intersolar_retorno_ano1": intersolar_retorno_ano1,
                 "intersolar_eficiencia_anual": intersolar_eficiencia_anual,
-                "opex_df": edited_opex.to_dict('records'), # Salva a tabela de custos inteira
+                "opex_df": edited_opex.to_dict('records'),
                 "inflacao_opex_anual": inflacao_opex_anual,
                 "inflacao_cac_anual": inflacao_cac_anual,
-                "lista_gatilhos": lista_gatilhos
+                "lista_gatilhos": lista_gatilhos,
+                "multiplo_arr": multiplo_arr, # Adicionado!
+                "base_calculo": base_calculo  # Adicionado!
             }
             
             # 2. Salva tudo no banco
@@ -525,7 +536,7 @@ if is_admin:
                 "inflacao_cac": def_inflacao_cac, 
                 "aporte_valor": aporte_investimento, 
                 "mes_aporte": mes_aporte,
-                "dados_extras": dados_extras_json # Injeta o JSON aqui
+                "dados_extras": dados_extras_json
             }
             supabase.table("cenarios_visol").insert(novo_cenario).execute()
             
