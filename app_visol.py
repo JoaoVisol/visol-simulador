@@ -143,7 +143,7 @@ index_salvo = opcoes_cenarios.index(nome_salvo) if nome_salvo in opcoes_cenarios
 st.sidebar.header("1. Configurações de Simulação")
 # O selectbox agora nasce na posição que foi salva no Supabase
 cenario_selecionado = st.sidebar.selectbox("Selecione o Cenário", opcoes_cenarios, index=index_salvo)
-meses_projecao = st.sidebar.slider("Meses de Projeção", 6, 60, value=def_meses))
+meses_projecao = st.sidebar.slider("Meses de Projeção", 6, 60, value=def_meses)
 
 st.sidebar.markdown("---")
 st.sidebar.header("2. Produtos Adicionais (Cross-sell)")
@@ -599,6 +599,7 @@ with tab4:
         .background_gradient(cmap="RdYlGn", axis=None),
         use_container_width=True
     )
+
 
 
 
