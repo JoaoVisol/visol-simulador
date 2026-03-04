@@ -1,7 +1,30 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import io
+from supabase import create_client, Client
+
+# 1. PRIMEIRO COMANDO DO STREAMLIT (Obrigatório)
+st.set_page_config(page_title="Projeções Financeiras - Visol", layout="wide")
+
+# --- SETUP DE CONEXÃO COM BANCO DE DADOS ---
+@st.cache_resource
+def init_connection():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+supabase: Client = init_connection()
+
+@st.cache_data(ttl=60) # Cache de 60 segundos para performance
+def carregar_cenario_padrao():
+    try:
+        # Busca a linha onde is_default é verdadeiro
+        response = supabase.table("cenarios_visol").select("*").eq("is_default", True).execute()
+        if response.data:
+            return response.data[0]
+    except Exception as e:
+        st.error(f"Erro de conexão com o banco: {e}")
+    return None
 
 # --- TELA DE LOGIN (BARREIRA DE SEGURANÇA) ---
 def check_password():
@@ -33,6 +56,20 @@ if not check_password():
 # O RESTANTE DO CÓDIGO SÓ RODA SE A SENHA ESTIVER CORRETA
 # ==========================================
 
+cenario_db = carregar_cenario_padrao()
+
+# Se o banco falhar, usa os valores hardcoded. Se funcionar, usa os do banco.
+def_meses = cenario_db["meses_projecao"] if cenario_db else 36
+def_caixa = float(cenario_db["caixa_inicial"]) if cenario_db else 8200.0
+def_clientes = cenario_db["clientes_iniciais"] if cenario_db else 77
+def_ticket = float(cenario_db["ticket_medio"]) if cenario_db else 300.0
+def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 0.10
+def_churn = float(cenario_db["churn_mensal"]) if cenario_db else 0.02
+def_inflacao_cac = float(cenario_db["inflacao_cac"]) if cenario_db else 0.05
+def_aporte = float(cenario_db["aporte_valor"]) if cenario_db else 500000.0
+def_mes_aporte = cenario_db["mes_aporte"] if cenario_db else 6
+
+
 # --- FUNÇÕES DE FORMATAÇÃO BRASILEIRA ---
 def format_br(valor, decimais=2):
     """Formata números para o padrão brasileiro (ex: 1.234.567,89)"""
@@ -49,7 +86,7 @@ def format_pct_br(valor, decimais=1):
     return f"{valor*100:.{decimais}f}%".replace(".", ",")
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Projeções Financeiras - Visol", layout="wide")
+
 st.title("📊 Visol - Projeções Financeiras e KPIs SaaS")
 
 # --- PARÂMETROS BASE ---
@@ -79,11 +116,11 @@ cenarios = {
 # --- INTERFACE LATERAL (SIDEBAR) ---
 st.sidebar.header("1. Configurações de Simulação")
 cenario_selecionado = st.sidebar.selectbox("Selecione o Cenário", list(cenarios.keys()))
-meses_projecao = st.sidebar.slider("Meses de Projeção", 6, 60, 36)
+meses_projecao = st.sidebar.slider("Meses de Projeção", 6, 60, value=def_meses)
 
 st.sidebar.markdown("---")
 st.sidebar.header("2. Produtos Adicionais (Cross-sell)")
-incluir_addon = st.sidebar.checkbox("Habilitar Produto Adicional", value=False)
+incluir_addon = st.sidebar.checkbox("Habilitar Produto Adicional", value=True)
 
 if incluir_addon:
     num_addons = st.sidebar.number_input("Quantidade de Produtos", min_value=1, max_value=5, value=1)
@@ -106,11 +143,11 @@ else:
 
 st.sidebar.markdown("---")
 st.sidebar.header("3. Eficiência Comercial")
-incremento_semestral_vendas = st.sidebar.number_input("Incremento Semestral de Vendas (%)", min_value=0.0, value=10.0, step=1.0, help="Aumento composto na produtividade da equipe a cada 6 meses.")
+incremento_semestral_vendas = st.sidebar.number_input("Incremento Semestral de Vendas (%)", min_value=0.0, value=def_crescimento, step=1.0, help="Aumento composto na produtividade da equipe a cada 6 meses.")
 
 st.sidebar.markdown("---")
 st.sidebar.header("4. Eventos e CAPEX (Intersolar)")
-incluir_intersolar = st.sidebar.checkbox("Participar da Intersolar (Anual)", value=True)
+incluir_intersolar = st.sidebar.checkbox("Participar da Intersolar (Anual)", value=False)
 
 if incluir_intersolar:
     intersolar_custo_ano1 = st.sidebar.number_input("Custo Base (Ano 1 - R$)", min_value=0.0, value=35000.0, step=5000.0)
@@ -125,10 +162,36 @@ else:
 
 st.sidebar.markdown("---")
 st.sidebar.header("5. Captação de Investimento")
-aporte_investimento = st.sidebar.number_input("Valor da Captação (R$)", min_value=0.0, value=0.0, step=50000.0)
-mes_aporte = st.sidebar.number_input("Mês de Entrada do Aporte", min_value=1, max_value=60, value=1)
+aporte_investimento = st.sidebar.number_input("Valor da Captação (R$)", min_value=0.0, value=def_aporte, step=50000.0)
+mes_aporte = st.sidebar.number_input("Mês de Entrada do Aporte", min_value=1, max_value=60, value=def_mes_aporte)
 
 params = cenarios[cenario_selecionado]
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚙️ Painel Admin (Visol)")
+
+if st.sidebar.button("💾 Salvar Cenário Atual como Padrão"):
+    try:
+        # 1. Remove o status de "padrão" de todos os cenários anteriores
+        supabase.table("cenarios_visol").update({"is_default": False}).neq("is_default", None).execute()
+        
+        # 2. Insere o novo cenário com os valores que estão na tela agora
+        novo_cenario = {
+            "nome_cenario": "Cenário Atualizado via Painel",
+            "is_default": True,
+            "meses_projecao": meses_projecao,
+            "caixa_inicial": caixa_inicial,
+            "clientes_iniciais": clientes_iniciais,
+            "ticket_medio": ticket_medio,
+            # Adicione aqui as outras variáveis que você quer salvar
+        }
+        supabase.table("cenarios_visol").insert(novo_cenario).execute()
+        
+        # Limpa o cache para forçar a leitura dos novos dados
+        carregar_cenario_padrao.clear()
+        st.sidebar.success("✅ Cenário salvo! Investidores agora verão estes números.")
+    except Exception as e:
+        st.sidebar.error(f"Erro ao salvar no banco: {e}")
 
 # --- ESTRUTURA DE ABAS (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade"])
@@ -145,7 +208,7 @@ with tab3:
         "Valor Mensal (R$)": [15800.00, 349.30, 90.00, 1000.00, 319.90, 300.00, 1500.00, 600.00, 70.42]
     })
     
-    edited_opex = st.data_editor(default_opex, num_rows="dynamic", width="stretch")
+    edited_opex = st.data_editor(default_opex, num_rows="dynamic", use_container_width=True)
     opex_base_total = edited_opex["Valor Mensal (R$)"].sum()
     
     marketing_row = edited_opex[edited_opex["Categoria"].str.contains("Marketing", case=False, na=False)]
@@ -157,9 +220,9 @@ with tab3:
     st.subheader("2. Reajustes e Inflação")
     col_inf1, col_inf2 = st.columns(2)
     with col_inf1:
-        inflacao_opex_anual = st.number_input("Reajuste Anual do OPEX (IPCA/Dissídio) %", min_value=0.0, value=5.0, step=1.0)
+        inflacao_opex_anual = st.number_input("Reajuste Anual do OPEX (IPCA/Dissídio) %", min_value=0.0, value=def_inflacao_cac, step=1.0)
     with col_inf2:
-        inflacao_cac_anual = st.number_input("Degradação Anual do CAC (%)", min_value=0.0, value=10.0, step=1.0)
+        inflacao_cac_anual = st.number_input("Degradação Anual do CAC (%)", min_value=0.0, value=def_inflacao_cac, step=1.0)
         
     st.markdown("---")
     st.subheader("3. Gatilhos de OPEX (Step-Functions)")
@@ -172,9 +235,9 @@ with tab3:
         with cg1:
             nome_gatilho = st.text_input("Descrição", f"Analista CS {i+1}", key=f"gatilho_nome_{i}")
         with cg2:
-            clientes_alvo = st.number_input("A cada X clientes", min_value=1, value=50, key=f"gatilho_clientes_{i}")
+            clientes_alvo = st.number_input("A cada X clientes", min_value=1, value=150, key=f"gatilho_clientes_{i}")
         with cg3:
-            valor_gatilho = st.number_input("Adicionar (R$)", min_value=0.0, value=3500.0, step=500.0, key=f"gatilho_valor_{i}")
+            valor_gatilho = st.number_input("Adicionar (R$)", min_value=0.0, value=4000.0, step=500.0, key=f"gatilho_valor_{i}")
             
         lista_gatilhos.append({
             "nome": nome_gatilho,
@@ -381,7 +444,7 @@ with tab1:
     
     st.dataframe(
         df_projecao.style.format({col: format_br for col in colunas_moeda}),
-        width="stretch"
+        use_container_width=True
     )
 
 # ==========================================
@@ -470,5 +533,5 @@ with tab4:
     st.dataframe(
         matriz_caixa.style.format(lambda x: format_br(x, decimais=0))
         .background_gradient(cmap="RdYlGn", axis=None),
-        width="stretch"
+        use_container_width=True
     )
