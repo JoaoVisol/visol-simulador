@@ -15,15 +15,15 @@ def init_connection():
 
 supabase: Client = init_connection()
 
-@st.cache_data(ttl=60) # Cache de 60 segundos para performance
-def carregar_cenario_padrao():
+# NOVA FUNÇÃO: Carrega TODOS os cenários, não apenas o padrão
+@st.cache_data(ttl=60) 
+def carregar_cenarios_db():
     try:
-        response = supabase.table("cenarios_visol").select("*").eq("is_default", True).execute()
-        if response.data:
-            return response.data[0]
+        response = supabase.table("cenarios_visol").select("*").order("created_at", desc=True).execute()
+        return response.data
     except Exception as e:
         st.error(f"Erro de conexão com o banco: {e}")
-    return None
+        return []
 
 # --- TELA DE LOGIN (BARREIRA DE SEGURANÇA) ---
 def check_password():
@@ -67,9 +67,30 @@ if not is_admin:
     """, unsafe_allow_html=True)
 
 # 
-# CARREGAMENTO DE DADOS DO BANCO
+# CARREGAMENTO DE DADOS DO BANCO (MULTI-CENÁRIOS)
 # 
-cenario_db = carregar_cenario_padrao()
+todos_cenarios = carregar_cenarios_db()
+
+if is_admin:
+    st.sidebar.subheader("📂 Workspace de Simulações")
+    nomes_salvos = [c["nome_cenario"] for c in todos_cenarios]
+    
+    # Encontra o cenário padrão para deixar selecionado inicialmente
+    idx_padrao = 0
+    for i, c in enumerate(todos_cenarios):
+        if c.get("is_default"):
+            idx_padrao = i
+            break
+            
+    if nomes_salvos:
+        simulacao_escolhida = st.sidebar.selectbox("Carregar simulação salva:", nomes_salvos, index=idx_padrao)
+        cenario_db = next((c for c in todos_cenarios if c["nome_cenario"] == simulacao_escolhida), None)
+    else:
+        simulacao_escolhida = "Nova Simulação"
+        cenario_db = None
+else:
+    # Investidor SEMPRE carrega apenas o cenário marcado como is_default=True
+    cenario_db = next((c for c in todos_cenarios if c.get("is_default")), None)
 
 # Extrai o pacote JSON de dados extras (se existir)
 dados_extras = cenario_db.get("dados_extras", {}) if cenario_db and cenario_db.get("dados_extras") else {}
@@ -143,13 +164,21 @@ cenarios = {
     "Com investimento (Premium + Chat ARPA300)": {"vendas_mes": 20, "arpa_novo": 300, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 4500}
 }
 
-nome_salvo = cenario_db["nome_cenario"].replace("Cenário: ", "") if cenario_db else "Pessimista"
+# Lógica inteligente para manter o perfil base selecionado corretamente
+if "perfil_base" in dados_extras:
+    nome_salvo = dados_extras["perfil_base"]
+else:
+    nome_salvo = cenario_db["nome_cenario"].replace("Cenário: ", "") if cenario_db else "Pessimista"
+    if nome_salvo not in cenarios.keys():
+        nome_salvo = "Pessimista"
+
 opcoes_cenarios = list(cenarios.keys())
 index_salvo = opcoes_cenarios.index(nome_salvo) if nome_salvo in opcoes_cenarios else 0
 
 # --- INTERFACE LATERAL (SIDEBAR) ---
+st.sidebar.markdown("---")
 st.sidebar.header("1. Configurações de Simulação")
-cenario_selecionado = st.sidebar.selectbox("Selecione o Cenário", opcoes_cenarios, index=index_salvo)
+cenario_selecionado = st.sidebar.selectbox("Selecione o Perfil Base", opcoes_cenarios, index=index_salvo)
 meses_projecao = st.sidebar.slider("Meses de Projeção", 6, 60, value=def_meses)
 
 st.sidebar.markdown("---")
@@ -406,8 +435,7 @@ df_projecao = projetar_fluxo(
 # ABA 1: PROJEÇÕES FINANCEIRAS
 # 
 with tab1:
-    st.header(f"Projeção: Cenário {cenario_selecionado}")
-
+    st.header(f"Projeção: {simulacao_escolhida if is_admin else cenario_selecionado}")
     ult_mes = df_projecao.iloc[-1]
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("MRR Total Final", format_br(ult_mes['MRR Total (R$)']))
@@ -448,7 +476,7 @@ with tab1:
     st.markdown("---")
     st.subheader("📥 Exportação de Dados")
     csv_data = df_projecao.to_csv(index=False).encode('utf-8')
-    st.download_button(label="Baixar DRE Projetado (CSV)", data=csv_data, file_name=f"visol_projecao_{cenario_selecionado.split()[0].lower()}.csv", mime="text/csv")
+    st.download_button(label="Baixar DRE Projetado (CSV)", data=csv_data, file_name=f"visol_projecao.csv", mime="text/csv")
 
 # 
 # ABA 2: VALUATION SAAS
@@ -527,17 +555,27 @@ with tab4:
     st.dataframe(matriz_caixa.style.format(lambda x: format_br(x, decimais=0)).background_gradient(cmap="RdYlGn", axis=None), use_container_width=True)
 
 # 
-# PAINEL ADMIN - SALVAR CENÁRIO (Movido para o final)
+# PAINEL ADMIN - SALVAR CENÁRIO (MULTI-SAVE)
 # 
 if is_admin:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("⚙️ Painel Admin (Visol)")
-    if st.sidebar.button("💾 Salvar Cenário Atual como Padrão"):
+    st.sidebar.subheader("💾 Salvar Simulação")
+    
+    # Input para o usuário dar um nome ao cenário
+    nome_simulacao = st.sidebar.text_input("Nome da Simulação", value=simulacao_escolhida if nomes_salvos else "Nova Simulação")
+    
+    # Checkbox para definir se o investidor vai ver isso
+    is_investor_default = st.sidebar.checkbox("🌟 Definir como visão do Investidor", value=False)
+    
+    if st.sidebar.button("Salvar Cenário no Banco"):
         try:
-            supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
+            # Se marcou como visão do investidor, tira o status de "default" dos outros
+            if is_investor_default:
+                supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
             
-            # 1. Empacota todas as variáveis complexas num JSON
+            # Empacota todas as variáveis complexas num JSON
             dados_extras_json = {
+                "perfil_base": cenario_selecionado, # Salva qual foi o perfil base escolhido
                 "incluir_addon": incluir_addon,
                 "num_addons": num_addons if incluir_addon else 0,
                 "lista_addons": lista_addons,
@@ -554,10 +592,9 @@ if is_admin:
                 "base_calculo": base_calculo
             }
             
-            # 2. Salva tudo no banco
             novo_cenario = {
-                "nome_cenario": f"Cenário: {cenario_selecionado}",
-                "is_default": True,
+                "nome_cenario": nome_simulacao,
+                "is_default": is_investor_default,
                 "meses_projecao": meses_projecao,
                 "caixa_inicial": caixa_inicial,
                 "clientes_iniciais": clientes_iniciais,
@@ -569,10 +606,16 @@ if is_admin:
                 "mes_aporte": mes_aporte,
                 "dados_extras": dados_extras_json
             }
-            supabase.table("cenarios_visol").insert(novo_cenario).execute()
             
-            carregar_cenario_padrao.clear()
-            st.sidebar.success("✅ Cenário salvo! Investidores agora verão exatamente estes números.")
+            # Verifica se já existe um cenário com esse nome exato para atualizar (Upsert manual)
+            existing = supabase.table("cenarios_visol").select("id").eq("nome_cenario", nome_simulacao).execute()
+            if existing.data:
+                supabase.table("cenarios_visol").update(novo_cenario).eq("nome_cenario", nome_simulacao).execute()
+            else:
+                supabase.table("cenarios_visol").insert(novo_cenario).execute()
+            
+            carregar_cenarios_db.clear()
+            st.sidebar.success("✅ Salvo com sucesso!")
+            st.rerun() # Recarrega a tela para atualizar o dropdown
         except Exception as e:
             st.sidebar.error(f"Erro ao salvar no banco: {e}")
-
