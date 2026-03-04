@@ -109,9 +109,10 @@ def format_pct_br(valor, decimais=1):
 st.title("📊 Visol - Projeções Financeiras e KPIs SaaS")
 
 # --- PARÂMETROS BASE ---
-clientes_iniciais = 77
-mrr_inicial = 11550
-caixa_inicial = 8200 
+# Agora lendo os valores que vieram do banco de dados
+clientes_iniciais = int(def_clientes)
+caixa_inicial = float(def_caixa)
+mrr_inicial = 11550 
 fomento_faperj = 29400  
 parcela_emprestimo = 1365
 meses_restantes_emprestimo = 18 
@@ -132,10 +133,17 @@ cenarios = {
     }
 }
 
+# --- LÓGICA DE SINCRONIZAÇÃO COM O BANCO ---
+# Descobre qual cenário foi salvo no banco para deixá-lo como padrão na tela
+nome_salvo = cenario_db["nome_cenario"].replace("Cenário: ", "") if cenario_db else "Pessimista (Atual)"
+opcoes_cenarios = list(cenarios.keys())
+index_salvo = opcoes_cenarios.index(nome_salvo) if nome_salvo in opcoes_cenarios else 0
+
 # --- INTERFACE LATERAL (SIDEBAR) ---
 st.sidebar.header("1. Configurações de Simulação")
-cenario_selecionado = st.sidebar.selectbox("Selecione o Cenário", list(cenarios.keys()))
-meses_projecao = st.sidebar.slider("Meses de Projeção", 6, 60, value=def_meses)
+# O selectbox agora nasce na posição que foi salva no Supabase
+cenario_selecionado = st.sidebar.selectbox("Selecione o Cenário", opcoes_cenarios, index=index_salvo)
+meses_projecao = st.sidebar.slider("Meses de Projeção", 6, 60, value=def_meses))
 
 st.sidebar.markdown("---")
 st.sidebar.header("2. Produtos Adicionais (Cross-sell)")
@@ -591,6 +599,7 @@ with tab4:
         .background_gradient(cmap="RdYlGn", axis=None),
         use_container_width=True
     )
+
 
 
 
