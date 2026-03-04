@@ -514,15 +514,25 @@ with tab2:
     st.markdown("---")
     col_val1, col_val2 = st.columns([1, 2])
     
-    with col_val1:
+      with col_val1:
         st.markdown("**Definição do Múltiplo**")
-        multiplo_arr = st.slider("Múltiplo de ARR Aplicado", 1.0, 15.0, 4.0, 0.5)
-        base_calculo = st.radio("Base do ARR", ["ARR Atual (Trailing)", "ARR Projetado (Forward)"], index=1)
+        # O parâmetro disabled=not is_admin bloqueia a edição se o usuário não for admin
+        multiplo_arr = st.slider(
+            "Múltiplo de ARR Aplicado", 
+            1.0, 15.0, 4.0, 0.5, 
+            disabled=not is_admin
+        )
+        base_calculo = st.radio(
+            "Base do ARR", 
+            ["ARR Atual (Trailing)", "ARR Projetado (Forward)"], 
+            index=1, 
+            disabled=not is_admin
+        )
         
         arr_base = arr_projetado if base_calculo == "ARR Projetado (Forward)" else arr_atual
         valuation_pre_money = arr_base * multiplo_arr
         st.info(f"**Valuation Pre-Money:**\n{format_br(valuation_pre_money)}")
-
+          
     with col_val2:
         st.markdown("**Impacto da Captação no Cap Table**")
         if aporte_investimento > 0:
@@ -581,6 +591,7 @@ with tab4:
         .background_gradient(cmap="RdYlGn", axis=None),
         use_container_width=True
     )
+
 
 
 
