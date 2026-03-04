@@ -83,7 +83,7 @@ def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 10
 def_churn = float(cenario_db["churn_mensal"]) if cenario_db else 0.02
 def_inflacao_cac = float(cenario_db["inflacao_cac"]) if cenario_db else 0.05
 def_aporte = float(cenario_db["aporte_valor"]) if cenario_db else 500000.0
-def_mes_aporte = cenario_db["mes_aporte"] if cenario_db else 6
+def_mes_aporte = cenario_db["mes_aporte"] if cenario_db else 4
 
 # Variáveis Extras (JSON)
 def_incluir_addon = dados_extras.get("incluir_addon", True)
@@ -278,14 +278,14 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         clientes_extras_intersolar = 0
         
         if incluir_intersolar:
-            if mes >= 9 and (mes - 9) % 12 == 0:
-                ano_evento = (mes - 9) // 12
+            if mes >= 6 and (mes - 6) % 12 == 0:
+                ano_evento = (mes - 6) // 12
                 saida_capex = intersolar_custo_ano1 + (ano_evento * intersolar_aumento_anual)
             
-            if mes >= 10:
-                mes_pos_evento = (mes - 10) % 12
+            if mes >= 7:
+                mes_pos_evento = (mes - 7) % 12
                 if mes_pos_evento < 3:
-                    ano_evento_retorno = (mes - 10) // 12
+                    ano_evento_retorno = (mes - 7) // 12
                     custo_evento_ref = intersolar_custo_ano1 + (ano_evento_retorno * intersolar_aumento_anual)
                     
                     # CORREÇÃO AQUI: Proteção matemática contra divisão por zero
@@ -553,4 +553,5 @@ if is_admin:
             st.sidebar.success("✅ Cenário salvo! Investidores agora verão exatamente estes números.")
         except Exception as e:
             st.sidebar.error(f"Erro ao salvar no banco: {e}")
+
 
