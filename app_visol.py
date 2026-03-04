@@ -458,7 +458,7 @@ with tab1:
     col7.metric("Relação LTV:CAC", f"{ltv_cac_ratio:.1f}x".replace(".", ","))
     col8.metric("ARPA Final (Blended)", format_br(arpa_final))
 
-       st.markdown("---")
+    st.markdown("---")
     
     # ---------------------------------------------------------
     # GRÁFICO 1: ENTRADAS DE CAIXA + EVOLUÇÃO DE USUÁRIOS
@@ -689,4 +689,5 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
