@@ -175,15 +175,19 @@ if st.sidebar.button("💾 Salvar Cenário Atual como Padrão"):
         # 1. Remove o status de "padrão" apenas do cenário que atualmente é o padrão
         supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
         
-        # 2. Insere o novo cenário com os valores que estão na tela agora
+        # 2. Insere o novo cenário mapeando as variáveis corretas do seu código
         novo_cenario = {
-            "nome_cenario": "Cenário Atualizado via Painel",
+            "nome_cenario": f"Cenário: {cenario_selecionado}",
             "is_default": True,
             "meses_projecao": meses_projecao,
             "caixa_inicial": caixa_inicial,
             "clientes_iniciais": clientes_iniciais,
-            "ticket_medio": ticket_medio,
-            # Certifique-se de listar as outras variáveis aqui
+            "ticket_medio": def_ticket, # Usa o valor default do banco/topo do código
+            "crescimento_vendas": incremento_semestral_vendas, # Pega do seu input da sidebar
+            "churn_mensal": params["churn_rate"], # Pega do dicionário do cenário selecionado
+            "inflacao_cac": def_inflacao_cac, # Usa o valor default
+            "aporte_valor": aporte_investimento, # Pega do seu input da sidebar
+            "mes_aporte": mes_aporte # Pega do seu input da sidebar
         }
         supabase.table("cenarios_visol").insert(novo_cenario).execute()
         
@@ -535,4 +539,5 @@ with tab4:
         .background_gradient(cmap="RdYlGn", axis=None),
         use_container_width=True
     )
+
 
