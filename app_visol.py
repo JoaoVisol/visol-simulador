@@ -438,12 +438,19 @@ df_projecao = projetar_fluxo(
 # 
 with tab1:
     st.header(f"Projeção: {simulacao_escolhida if is_admin else cenario_selecionado}")
-        # --- PREMISSAS DO CENÁRIO ---
+           # --- PREMISSAS DO CENÁRIO E MENU LATERAL ---
+    texto_intersolar = "Sim" if incluir_intersolar else "Não"
+    texto_addon = f"Sim ({num_addons} produto(s))" if incluir_addon else "Não"
+    texto_aporte = f"{format_br(aporte_investimento)} (Mês {mes_aporte})" if aporte_investimento > 0 else "Sem aporte"
+
     st.info(f"""
-    **🔍 Premissas Base do Cenário:**
-    * **Vendas:** {params['vendas_mes']} clientes/mês | **ARPA Novo:** {format_br(params['arpa_novo'])} | **Churn:** {format_pct_br(params['churn_rate'])}
-    * **Custos Extras:** Mkt {format_br(params['add_mkt'])} | Vendas {format_br(params['add_vendas'])} | Outros {format_br(params['add_outros'])}
+    **🔍 Premissas do Cenário e Variáveis Globais:**
+    * **Perfil Comercial:** {params['vendas_mes']} vendas/mês | **ARPA Novo:** {format_br(params['arpa_novo'])} | **Churn:** {format_pct_br(params['churn_rate'])}
+    * **Custos do Perfil:** Mkt {format_br(params['add_mkt'])} | Vendas {format_br(params['add_vendas'])} | Outros {format_br(params['add_outros'])}
+    * **Eficiência e Mercado:** Crescimento Semestral Vendas: {format_pct_br(incremento_semestral_vendas/100)} | Reajuste OPEX: {format_pct_br(inflacao_opex_anual/100)} | Inflação CAC: {format_pct_br(inflacao_cac_anual/100)}
+    * **Estratégia:** Captação: {texto_aporte} | Intersolar: {texto_intersolar} | Cross-sell (Add-ons): {texto_addon}
     """)
+    
     ult_mes = df_projecao.iloc[-1]
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("MRR Total Final", format_br(ult_mes['MRR Total (R$)']))
@@ -682,6 +689,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
