@@ -79,7 +79,7 @@ def_meses = cenario_db["meses_projecao"] if cenario_db else 36
 def_caixa = float(cenario_db["caixa_inicial"]) if cenario_db else 8200.0
 def_clientes = cenario_db["clientes_iniciais"] if cenario_db else 77
 def_ticket = float(cenario_db["ticket_medio"]) if cenario_db else 300.0
-def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 0.10
+def_crescimento = float(cenario_db["crescimento_vendas"]) if cenario_db else 10
 def_churn = float(cenario_db["churn_mensal"]) if cenario_db else 0.02
 def_inflacao_cac = float(cenario_db["inflacao_cac"]) if cenario_db else 0.05
 def_aporte = float(cenario_db["aporte_valor"]) if cenario_db else 500000.0
@@ -96,7 +96,7 @@ def_int_retorno = int(dados_extras.get("intersolar_retorno_ano1", 45))
 def_int_efic = float(dados_extras.get("intersolar_eficiencia_anual", 10.0))
 def_inf_opex = float(dados_extras.get("inflacao_opex_anual", def_inflacao_cac))
 def_inf_cac = float(dados_extras.get("inflacao_cac_anual", def_inflacao_cac))
-def_lista_gatilhos = dados_extras.get("lista_gatilhos", [{"nome": "Analista CS 1", "clientes_alvo": 150, "valor": 4000.0}])
+def_lista_gatilhos = dados_extras.get("lista_gatilhos", [{"nome": "Incremento Time", "clientes_alvo": 150, "valor": 4000.0}])
 
 # Variáveis de Valuation salvas no JSON
 def_multiplo_arr = float(dados_extras.get("multiplo_arr", 4.0))
@@ -553,3 +553,4 @@ if is_admin:
             st.sidebar.success("✅ Cenário salvo! Investidores agora verão exatamente estes números.")
         except Exception as e:
             st.sidebar.error(f"Erro ao salvar no banco: {e}")
+
