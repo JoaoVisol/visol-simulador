@@ -157,7 +157,10 @@ incluir_addon = st.sidebar.checkbox("Habilitar Produto Adicional", value=def_inc
 
 lista_addons = []
 if incluir_addon:
-    num_addons = st.sidebar.number_input("Quantidade de Produtos", min_value=1, max_value=5, value=def_num_addons)
+    # CORREÇÃO AQUI: Garante que o valor inicial seja no mínimo 1 para não quebrar o min_value
+    safe_num_addons = max(1, def_num_addons)
+    num_addons = st.sidebar.number_input("Quantidade de Produtos", min_value=1, max_value=5, value=safe_num_addons)
+    
     for i in range(num_addons):
         saved_addon = def_lista_addons[i] if i < len(def_lista_addons) else {}
         st.sidebar.markdown(f"**Produto {i+1}**")
@@ -438,10 +441,7 @@ with tab2:
     with col_val1:
         st.markdown("**Definição do Múltiplo**")
         
-        # O slider agora nasce com o valor salvo no banco (def_multiplo_arr)
         multiplo_arr = st.slider("Múltiplo de ARR Aplicado", 1.0, 15.0, def_multiplo_arr, 0.5, disabled=not is_admin)
-        
-        # O radio agora nasce com a seleção salva no banco
         index_base = 1 if def_base_calculo == "ARR Projetado (Forward)" else 0
         base_calculo = st.radio("Base do ARR", ["ARR Atual (Trailing)", "ARR Projetado (Forward)"], index=index_base, disabled=not is_admin)
         
@@ -519,8 +519,8 @@ if is_admin:
                 "inflacao_opex_anual": inflacao_opex_anual,
                 "inflacao_cac_anual": inflacao_cac_anual,
                 "lista_gatilhos": lista_gatilhos,
-                "multiplo_arr": multiplo_arr, # Adicionado!
-                "base_calculo": base_calculo  # Adicionado!
+                "multiplo_arr": multiplo_arr,
+                "base_calculo": base_calculo
             }
             
             # 2. Salva tudo no banco
