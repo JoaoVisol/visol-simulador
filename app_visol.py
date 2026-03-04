@@ -438,6 +438,12 @@ df_projecao = projetar_fluxo(
 # 
 with tab1:
     st.header(f"Projeção: {simulacao_escolhida if is_admin else cenario_selecionado}")
+        # --- PREMISSAS DO CENÁRIO ---
+    st.info(f"""
+    **🔍 Premissas Base do Cenário:**
+    * **Vendas:** {params['vendas_mes']} clientes/mês | **ARPA Novo:** {format_br(params['arpa_novo'])} | **Churn:** {format_pct_br(params['churn_rate'])}
+    * **Custos Extras:** Mkt {format_br(params['add_mkt'])} | Vendas {format_br(params['add_vendas'])} | Outros {format_br(params['add_outros'])}
+    """)
     ult_mes = df_projecao.iloc[-1]
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("MRR Total Final", format_br(ult_mes['MRR Total (R$)']))
@@ -459,78 +465,64 @@ with tab1:
     col8.metric("ARPA Final (Blended)", format_br(arpa_final))
 
     st.markdown("---")
-    
-    # ---------------------------------------------------------
-    # GRÁFICO 1: ENTRADAS DE CAIXA + EVOLUÇÃO DE USUÁRIOS
-    # ---------------------------------------------------------
-    st.subheader("Entradas Financeiras vs Evolução de Clientes")
-    
-    # Cria figura com eixo Y secundário
-    fig_entradas = make_subplots(specs=[[{"secondary_y": True}]])
-    
-    # Colunas de entrada e paleta de cores (tons de azul/verde para receita)
-    entradas_cols = ["MRR Licenças (R$)", "MRR Add-ons (R$)", "Receita Implementação (R$)", "Fomento FAPERJ (R$)", "Aporte Investidor (R$)"]
-    cores_entradas = ['#1f77b4', '#3498db', '#00bc8c', '#f39c12', '#2ecc71']
-    
-    # Adiciona as barras empilhadas
-    for col, cor in zip(entradas_cols, cores_entradas):
-        if col in df_projecao.columns and df_projecao[col].sum() > 0:
-            fig_entradas.add_trace(
-                go.Bar(x=df_projecao["Mês"], y=df_projecao[col], name=col.replace(" (R$)", ""), marker_color=cor),
-                secondary_y=False
-            )
-            
-    # Adiciona a linha de clientes ativos no eixo secundário
-    fig_entradas.add_trace(
-        go.Scatter(x=df_projecao["Mês"], y=df_projecao["Clientes Ativos"], name="Clientes Ativos", 
-                   mode='lines+markers', line=dict(color='#e74c3c', width=3), marker=dict(size=6)),
-        secondary_y=True
-    )
-    
-    fig_entradas.update_layout(
-        barmode='stack',
-        height=450,
-        margin=dict(l=0, r=0, t=30, b=0),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
-    )
-    fig_entradas.update_yaxes(title_text="Volume Financeiro (R$)", secondary_y=False)
-    fig_entradas.update_yaxes(title_text="Qtd. Clientes", secondary_y=True, showgrid=False)
-    
-    st.plotly_chart(fig_entradas, use_container_width=True)
+    col_graf1, col_graf2 = st.columns(2)
+    with col_graf1:
+        st.subheader("Composição da Receita")
+        if len(lista_addons) > 0:
+            st.bar_chart(df_projecao, x="Mês", y=["MRR Licenças (R$)", "MRR Add-ons (R$)", "Receita Implementação (R$)"])
+        else:
+            st.bar_chart(df_projecao, x="Mês", y=["MRR Licenças (R$)", "Receita Implementação (R$)"])
 
-    st.markdown("---")
-
-    # ---------------------------------------------------------
-    # GRÁFICO 2: SAÍDAS DE CAIXA (OPEX, CAPEX, Gatilhos)
-    # ---------------------------------------------------------
-    st.subheader("Composição das Saídas de Caixa")
+    with col_graf2:
+        st.markdown("---")
+        st.subheader("Análise Detalhada de Entradas e Saídas")
+        
+        # Gráfico 1: Entradas Financeiras + Usuários (Dual Axis)
+        fig_entradas = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        # Barras empilhadas (Entradas)
+        fig_entradas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["MRR Total (R$)"], name="MRR Total", marker_color="#2ca02c"), secondary_y=False)
+        fig_entradas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["Receita Implementação (R$)"], name="Implementação", marker_color="#98df8a"), secondary_y=False)
+        fig_entradas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["Fomento FAPERJ (R$)"], name="Fomento", marker_color="#1f77b4"), secondary_y=False)
+        fig_entradas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["Aporte Investidor (R$)"], name="Aporte", marker_color="#ff7f0e"), secondary_y=False)
+        
+        # Linha (Usuários)
+        fig_entradas.add_trace(go.Scatter(x=df_projecao["Mês"], y=df_projecao["Clientes Ativos"], name="Clientes Ativos", mode="lines+markers", line=dict(color="black", width=2)), secondary_y=True)
+        
+        fig_entradas.update_layout(title="Entradas de Caixa vs Evolução de Clientes", barmode="stack", hovermode="x unified")
+        fig_entradas.update_yaxes(title_text="Receitas (R$)", secondary_y=False)
+        fig_entradas.update_yaxes(title_text="Qtd Clientes", secondary_y=True)
+        
+        st.plotly_chart(fig_entradas, use_container_width=True)
     
-    fig_saidas = go.Figure()
-    
-    # Colunas de saída e paleta de cores (tons quentes/escuros para custos)
-    saidas_cols = ["OPEX Base (R$)", "OPEX Gatilhos (R$)", "Impostos (R$)", "Comissões Pagas (R$)", "Empréstimo (R$)", "CAPEX (R$)"]
-    cores_saidas = ['#34495e', '#9b59b6', '#e67e22', '#d35400', '#c0392b', '#7f8c8d']
-    
-    # Adiciona as barras empilhadas
-    for col, cor in zip(saidas_cols, cores_saidas):
-        if col in df_projecao.columns and df_projecao[col].sum() > 0:
-            fig_saidas.add_trace(
-                go.Bar(x=df_projecao["Mês"], y=df_projecao[col], name=col.replace(" (R$)", ""), marker_color=cor)
-            )
-            
-    fig_saidas.update_layout(
-        barmode='stack',
-        height=450,
-        margin=dict(l=0, r=0, t=30, b=0),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
-        yaxis_title="Custos e Despesas (R$)"
-    )
-    
-    st.plotly_chart(fig_saidas, use_container_width=True)
-    
-    # Mantém o gráfico de Runway original em tamanho menor abaixo, se desejar
-    with st.expander("Ver Evolução do Caixa Acumulado (Runway)"):
+        # Gráfico 2: Saídas de Caixa Empilhadas
+        # Calculando OPEX do Cenário (Mkt + Vendas + Outros) que não está explícito no df
+        opex_cenario = df_projecao["OPEX Total (R$)"] - df_projecao["OPEX Base (R$)"] - df_projecao["OPEX Gatilhos (R$)"]
+        
+        fig_saidas = go.Figure()
+        fig_saidas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["OPEX Base (R$)"], name="OPEX Base", marker_color="#aec7e8"))
+        fig_saidas.add_trace(go.Bar(x=df_projecao["Mês"], y=opex_cenario, name="OPEX Cenário (Mkt/Vendas/Outros)", marker_color="#ffbb78"))
+        fig_saidas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["OPEX Gatilhos (R$)"], name="OPEX Gatilhos (Novas Contratações)", marker_color="#d62728"))
+        fig_saidas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["Comissões Pagas (R$)"], name="Comissões", marker_color="#ff9896"))
+        fig_saidas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["Impostos (R$)"], name="Impostos", marker_color="#c5b0d5"))
+        fig_saidas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["CAPEX (R$)"], name="CAPEX (Eventos)", marker_color="#8c564b"))
+        fig_saidas.add_trace(go.Bar(x=df_projecao["Mês"], y=df_projecao["Empréstimo (R$)"], name="Empréstimo", marker_color="#e377c2"))
+        
+        fig_saidas.update_layout(title="Composição das Saídas de Caixa", barmode="stack", hovermode="x unified")
+        fig_saidas.update_yaxes(title_text="Despesas (R$)")
+        
+        st.plotly_chart(fig_saidas, use_container_width=True)
+        st.subheader("Evolução do Caixa Acumulado (Runway)")
         st.line_chart(df_projecao, x="Mês", y="Caixa Acumulado (R$)")
+
+        st.subheader("DRE Simplificado e Fluxo de Caixa (Mensal)")
+        colunas_moeda = [col for col in df_projecao.columns if "(R$)" in col]
+        st.dataframe(df_projecao.style.format({col: format_br for col in colunas_moeda}), use_container_width=True)
+    
+        st.markdown("---")
+        st.subheader("📥 Exportação de Dados")
+        csv_data = df_projecao.to_csv(index=False).encode('utf-8')
+        st.download_button(label="Baixar DRE Projetado (CSV)", data=csv_data, file_name=f"visol_projecao.csv", mime="text/csv")
 
 # 
 # ABA 2: VALUATION SAAS
@@ -689,5 +681,6 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
