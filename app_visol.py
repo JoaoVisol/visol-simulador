@@ -157,7 +157,6 @@ incluir_addon = st.sidebar.checkbox("Habilitar Produto Adicional", value=def_inc
 
 lista_addons = []
 if incluir_addon:
-    # CORREÇÃO AQUI: Garante que o valor inicial seja no mínimo 1 para não quebrar o min_value
     safe_num_addons = max(1, def_num_addons)
     num_addons = st.sidebar.number_input("Quantidade de Produtos", min_value=1, max_value=5, value=safe_num_addons)
     
@@ -181,10 +180,16 @@ st.sidebar.header("4. Eventos e CAPEX (Intersolar)")
 incluir_intersolar = st.sidebar.checkbox("Participar da Intersolar (Anual)", value=def_incluir_intersolar)
 
 if incluir_intersolar:
-    intersolar_custo_ano1 = st.sidebar.number_input("Custo Base (Ano 1 - R$)", min_value=0.0, value=def_int_custo, step=5000.0)
-    intersolar_aumento_anual = st.sidebar.number_input("Aumento de Custo Anual (R$)", min_value=0.0, value=def_int_aumento, step=1000.0)
-    intersolar_retorno_ano1 = st.sidebar.number_input("Retorno Base (Clientes no Ano 1)", min_value=0, value=def_int_retorno, step=5)
-    intersolar_eficiencia_anual = st.sidebar.number_input("Ganho de Eficiência Anual no Retorno (%)", min_value=0.0, value=def_int_efic, step=1.0)
+    # CORREÇÃO AQUI: Recupera os valores padrão caso o banco tenha salvo 0
+    safe_int_custo = def_int_custo if def_int_custo > 0 else 35000.0
+    safe_int_aumento = def_int_aumento if def_int_custo > 0 else 10000.0
+    safe_int_retorno = def_int_retorno if def_int_custo > 0 else 45
+    safe_int_efic = def_int_efic if def_int_custo > 0 else 10.0
+
+    intersolar_custo_ano1 = st.sidebar.number_input("Custo Base (Ano 1 - R$)", min_value=0.0, value=safe_int_custo, step=5000.0)
+    intersolar_aumento_anual = st.sidebar.number_input("Aumento de Custo Anual (R$)", min_value=0.0, value=safe_int_aumento, step=1000.0)
+    intersolar_retorno_ano1 = st.sidebar.number_input("Retorno Base (Clientes no Ano 1)", min_value=0, value=int(safe_int_retorno), step=5)
+    intersolar_eficiencia_anual = st.sidebar.number_input("Ganho de Eficiência Anual no Retorno (%)", min_value=0.0, value=safe_int_efic, step=1.0)
 else:
     intersolar_custo_ano1 = 0
     intersolar_aumento_anual = 0
@@ -282,7 +287,11 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
                 if mes_pos_evento < 3:
                     ano_evento_retorno = (mes - 10) // 12
                     custo_evento_ref = intersolar_custo_ano1 + (ano_evento_retorno * intersolar_aumento_anual)
-                    retorno_total = intersolar_retorno_ano1 * (custo_evento_ref / intersolar_custo_ano1) * ((1 + (intersolar_eficiencia_anual/100)) ** ano_evento_retorno)
+                    
+                    # CORREÇÃO AQUI: Proteção matemática contra divisão por zero
+                    razao_custo = (custo_evento_ref / intersolar_custo_ano1) if intersolar_custo_ano1 > 0 else 1.0
+                    
+                    retorno_total = intersolar_retorno_ano1 * razao_custo * ((1 + (intersolar_eficiencia_anual/100)) ** ano_evento_retorno)
                     clientes_extras_intersolar = retorno_total / 3 
                     
         novos_clientes = vendas_base_mes + clientes_extras_intersolar
@@ -505,7 +514,7 @@ if is_admin:
         try:
             supabase.table("cenarios_visol").update({"is_default": False}).eq("is_default", True).execute()
             
-            # 1. Empacota todas as variáveis complexas num JSON (agora incluindo Valuation)
+            # 1. Empacota todas as variáveis complexas num JSON
             dados_extras_json = {
                 "incluir_addon": incluir_addon,
                 "num_addons": num_addons if incluir_addon else 0,
