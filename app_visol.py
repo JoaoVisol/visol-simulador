@@ -830,7 +830,7 @@ with tab2:
         with col_det1:
             st.markdown("**Detalhamento Atual**")
             # Adicionamos os Anjos aqui para a soma fechar 100% exatos no Plotly
-            labels_det_atual = ['Sócio A (Protegido)', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)']
+            labels_det_atual = ['Sócio A', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)']
             values_det_atual = [cap_atual_socio_a, socio_b, socio_c, socio_d, socio_e, cap_atual_anjos]
             colors_det_atual = ['#17becf', '#aec7e8', '#1f77b4', '#9edae5', '#c6dbef', '#ff7f0e'] 
             
@@ -845,7 +845,7 @@ with tab2:
             st.markdown("**Detalhamento Post-Money**")
             if aporte_investimento > 0:
                 # Adicionamos Anjos e Investidor para fechar 100%
-                labels_det_post = ['Sócio A (Protegido)', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)', 'Novo Investidor']
+                labels_det_post = ['Sócio A', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)', 'Novo Investidor']
                 values_det_post = [post_socio_a, post_socio_b, post_socio_c, post_socio_d, post_socio_e, cap_post_anjos, equity_cedido]
                 colors_det_post = ['#17becf', '#aec7e8', '#1f77b4', '#9edae5', '#c6dbef', '#ff7f0e', '#2ca02c']
             else:
@@ -975,6 +975,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
