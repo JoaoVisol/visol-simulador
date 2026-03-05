@@ -769,6 +769,7 @@ with tab2:
     if aporte_investimento > 0:
         cap_post_anjos = cap_atual_anjos # Protegido
         cap_post_socio_a = cap_atual_socio_a # Protegido
+        post_socio_a = cap_atual_socio_a # CORREÇÃO AQUI
         
         # Subtrai a diluição proporcionalmente ao peso de cada um no pool diluível
         post_socio_b = socio_b - (equity_cedido * (socio_b / pool_diluivel))
@@ -847,6 +848,7 @@ with tab2:
                                                   textinfo='label+percent', hoverinfo='label+percent')])
             fig_det_post.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
             st.plotly_chart(fig_det_post, use_container_width=True)
+            
 # 
 # ABA 4: ANÁLISE DE SENSIBILIDADE
 # 
@@ -963,6 +965,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
