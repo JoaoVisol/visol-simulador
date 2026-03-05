@@ -752,28 +752,48 @@ with tab2:
     st.markdown("---")
     st.subheader("Distribuição Societária (Cap Table)")
     
-    # Lógica de Diluição e Proteção
+    # Lógica de Diluição e Proteção (Macro)
     cap_atual_anjos = 5.6
     cap_atual_socio_a = 5.0
-    cap_atual_outros_fundadores = 25.0 + 57.4 + 3.5 + 3.5 # 89.4% (Sócios B, C, D, E)
-    cap_atual_fundadores_total = cap_atual_socio_a + cap_atual_outros_fundadores # 94.4%
     
+    # Sócios diluíveis
+    socio_b = 25.0
+    socio_c = 57.4
+    socio_d = 3.5
+    socio_e = 3.5
+    pool_diluivel = socio_b + socio_c + socio_d + socio_e # 89.4%
+    
+    cap_atual_fundadores_total = cap_atual_socio_a + pool_diluivel # 94.4%
+    
+    # Cálculo proporcional da diluição para os sócios B, C, D e E
     if aporte_investimento > 0:
         cap_post_anjos = cap_atual_anjos # Protegido
         cap_post_socio_a = cap_atual_socio_a # Protegido
-        # A diluição sai integralmente do bloco dos sócios B, C, D e E
-        cap_post_outros_fundadores = cap_atual_outros_fundadores - equity_cedido
+        
+        # Subtrai a diluição proporcionalmente ao peso de cada um no pool diluível
+        post_socio_b = socio_b - (equity_cedido * (socio_b / pool_diluivel))
+        post_socio_c = socio_c - (equity_cedido * (socio_c / pool_diluivel))
+        post_socio_d = socio_d - (equity_cedido * (socio_d / pool_diluivel))
+        post_socio_e = socio_e - (equity_cedido * (socio_e / pool_diluivel))
+        
+        cap_post_outros_fundadores = post_socio_b + post_socio_c + post_socio_d + post_socio_e
         cap_post_fundadores_total = cap_post_socio_a + cap_post_outros_fundadores
     else:
         cap_post_anjos = cap_atual_anjos
         cap_post_fundadores_total = cap_atual_fundadores_total
+        post_socio_a = cap_atual_socio_a
+        post_socio_b = socio_b
+        post_socio_c = socio_c
+        post_socio_d = socio_d
+        post_socio_e = socio_e
 
     import plotly.graph_objects as go
     
+    # --- VISÃO MACRO ---
     col_cap1, col_cap2 = st.columns(2)
     
     with col_cap1:
-        st.markdown("**Cap Table Atual**")
+        st.markdown("**Visão Macro Atual**")
         labels_atual = ['Sócios Fundadores', 'Anjos (EvoSolar)']
         values_atual = [cap_atual_fundadores_total, cap_atual_anjos]
         
@@ -784,7 +804,7 @@ with tab2:
         st.plotly_chart(fig_cap_atual, use_container_width=True)
 
     with col_cap2:
-        st.markdown("**Cap Table Post-Money**")
+        st.markdown("**Visão Macro Post-Money**")
         if aporte_investimento > 0:
             labels_post = ['Sócios Fundadores', 'Anjos (EvoSolar)', 'Novo Investidor']
             values_post = [cap_post_fundadores_total, cap_post_anjos, equity_cedido]
@@ -802,6 +822,31 @@ with tab2:
         
     st.caption("💡 *Nota de Governança: Conforme acordo parassocial, a diluição desta rodada afeta exclusivamente os Sócios B, C, D e E. O Sócio A (5%) e os Anjos (5,6%) possuem cláusula anti-diluição, mantendo suas posições inalteradas no Cap Table Post-Money.*")
 
+    # --- VISÃO DETALHADA (RECOLHIDA) ---
+    with st.expander("🔍 Ver distribuição detalhada dos Sócios Fundadores"):
+        col_det1, col_det2 = st.columns(2)
+        
+        labels_det = ['Sócio A (Protegido)', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E']
+        # Paleta de tons de azul para representar o grupo de fundadores
+        colors_det = ['#17becf', '#aec7e8', '#1f77b4', '#9edae5', '#c6dbef'] 
+        
+        with col_det1:
+            st.markdown("**Detalhamento Atual**")
+            values_det_atual = [cap_atual_socio_a, socio_b, socio_c, socio_d, socio_e]
+            fig_det_atual = go.Figure(data=[go.Pie(labels=labels_det, values=values_det_atual, hole=.4, 
+                                                   marker_colors=colors_det,
+                                                   textinfo='label+percent', hoverinfo='label+percent')])
+            fig_det_atual.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+            st.plotly_chart(fig_det_atual, use_container_width=True)
+            
+        with col_det2:
+            st.markdown("**Detalhamento Post-Money**")
+            values_det_post = [post_socio_a, post_socio_b, post_socio_c, post_socio_d, post_socio_e]
+            fig_det_post = go.Figure(data=[go.Pie(labels=labels_det, values=values_det_post, hole=.4, 
+                                                  marker_colors=colors_det,
+                                                  textinfo='label+percent', hoverinfo='label+percent')])
+            fig_det_post.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+            st.plotly_chart(fig_det_post, use_container_width=True)
 # 
 # ABA 4: ANÁLISE DE SENSIBILIDADE
 # 
@@ -918,6 +963,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
