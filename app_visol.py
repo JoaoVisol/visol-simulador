@@ -142,7 +142,7 @@ default_opex = pd.DataFrame(default_opex_data)
 # --- FUNÇÕES DE FORMATAÇÃO BRASILEIRA ---
 def format_br(valor, decimais=2):
     if pd.isna(valor): return ""
-    return "R$ " + f"{{:,.{decimais}f}}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
+    return "R$" + f"{{ :,.{decimais}f}}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
 def format_pct_br(valor, decimais=1):
     if pd.isna(valor): return ""
@@ -446,7 +446,7 @@ with tab1:
     st.info(f"""
     **🔍 Premissas do Cenário e Variáveis Globais:**
     * **Perfil Comercial:** {params['vendas_mes']} vendas/mês | **ARPA Novo:** {format_br(params['arpa_novo'])} | **Churn:** {format_pct_br(params['churn_rate'])}
-    * **Custos do Perfil:** *Mkt* {format_br(params['add_mkt'])} | *Vendas* {format_br(params['add_vendas'])} | *Outros* {format_br(params['add_outros'])}
+    * **Custos do Perfil:** Mkt {format_br(params['add_mkt'])} | Vendas {format_br(params['add_vendas'])} | Outros {format_br(params['add_outros'])}
     * **Eficiência e Mercado:** Crescimento Semestral Vendas: {format_pct_br(incremento_semestral_vendas/100)} | Reajuste OPEX: {format_pct_br(inflacao_opex_anual/100)} | Inflação CAC: {format_pct_br(inflacao_cac_anual/100)}
     * **Estratégia:** Captação: {texto_aporte} | Intersolar: {texto_intersolar} | Cross-sell (Add-ons): {texto_addon}
     """)
@@ -778,6 +778,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
