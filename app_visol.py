@@ -237,9 +237,13 @@ params = cenarios[cenario_selecionado]
 # 
 # ESTRUTURA DE ABAS CONDICIONAL E CUSTOS
 # 
+# 
+# ESTRUTURA DE ABAS CONDICIONAL E CUSTOS
+# 
 if is_admin:
-    tab1, tab2, tab3, tab4 = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade"])
+    tab_realizado, tab1, tab2, tab3, tab4 = st.tabs(["📊 Realizado", "📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade"])
     
+   
     with tab3:
         st.header("Gestão de Custos e Alavancagem Operacional")
         
@@ -860,6 +864,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
