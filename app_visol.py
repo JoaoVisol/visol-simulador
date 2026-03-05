@@ -823,30 +823,40 @@ with tab2:
         
     st.caption("💡 *Nota de Governança: Conforme acordo parassocial, a diluição desta rodada afeta exclusivamente os Sócios B, C, D e E. O Sócio A (5%) e os Anjos (5,6%) possuem cláusula anti-diluição, mantendo suas posições inalteradas no Cap Table Post-Money.*")
 
-    # --- VISÃO DETALHADA (RECOLHIDA) ---
-    with st.expander("🔍 Ver distribuição detalhada dos Sócios Fundadores"):
+        # --- VISÃO DETALHADA (RECOLHIDA) ---
+    with st.expander("🔍 Ver distribuição detalhada do Cap Table"):
         col_det1, col_det2 = st.columns(2)
-        
-        labels_det = ['Sócio A (Protegido)', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E']
-        # Paleta de tons de azul para representar o grupo de fundadores
-        colors_det = ['#17becf', '#aec7e8', '#1f77b4', '#9edae5', '#c6dbef'] 
         
         with col_det1:
             st.markdown("**Detalhamento Atual**")
-            values_det_atual = [cap_atual_socio_a, socio_b, socio_c, socio_d, socio_e]
-            fig_det_atual = go.Figure(data=[go.Pie(labels=labels_det, values=values_det_atual, hole=.4, 
-                                                   marker_colors=colors_det,
+            # Adicionamos os Anjos aqui para a soma fechar 100% exatos no Plotly
+            labels_det_atual = ['Sócio A (Protegido)', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)']
+            values_det_atual = [cap_atual_socio_a, socio_b, socio_c, socio_d, socio_e, cap_atual_anjos]
+            colors_det_atual = ['#17becf', '#aec7e8', '#1f77b4', '#9edae5', '#c6dbef', '#ff7f0e'] 
+            
+            fig_det_atual = go.Figure(data=[go.Pie(labels=labels_det_atual, values=values_det_atual, hole=.4, 
+                                                   marker_colors=colors_det_atual,
                                                    textinfo='label+percent', hoverinfo='label+percent')])
-            fig_det_atual.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+            # showlegend=False deixa o gráfico mais limpo, usando as labels nativas
+            fig_det_atual.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=False)
             st.plotly_chart(fig_det_atual, use_container_width=True)
             
         with col_det2:
             st.markdown("**Detalhamento Post-Money**")
-            values_det_post = [post_socio_a, post_socio_b, post_socio_c, post_socio_d, post_socio_e]
-            fig_det_post = go.Figure(data=[go.Pie(labels=labels_det, values=values_det_post, hole=.4, 
-                                                  marker_colors=colors_det,
+            if aporte_investimento > 0:
+                # Adicionamos Anjos e Investidor para fechar 100%
+                labels_det_post = ['Sócio A (Protegido)', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)', 'Novo Investidor']
+                values_det_post = [post_socio_a, post_socio_b, post_socio_c, post_socio_d, post_socio_e, cap_post_anjos, equity_cedido]
+                colors_det_post = ['#17becf', '#aec7e8', '#1f77b4', '#9edae5', '#c6dbef', '#ff7f0e', '#2ca02c']
+            else:
+                labels_det_post = labels_det_atual
+                values_det_post = values_det_atual
+                colors_det_post = colors_det_atual
+
+            fig_det_post = go.Figure(data=[go.Pie(labels=labels_det_post, values=values_det_post, hole=.4, 
+                                                  marker_colors=colors_det_post,
                                                   textinfo='label+percent', hoverinfo='label+percent')])
-            fig_det_post.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+            fig_det_post.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=False)
             st.plotly_chart(fig_det_post, use_container_width=True)
             
 # 
@@ -965,6 +975,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
