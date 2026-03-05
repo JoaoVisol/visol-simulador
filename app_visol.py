@@ -241,7 +241,7 @@ params = cenarios[cenario_selecionado]
 # ESTRUTURA DE ABAS CONDICIONAL E CUSTOS
 # 
 if is_admin:
-    tab_realizado, tab1, tab2, tab3, tab4 = st.tabs(["📊 Realizado", "📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade"])
+    tab1, tab2, tab3, tab4, tab_realizado = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade", "📊 Realizado"])
     
    
     with tab3:
@@ -290,8 +290,7 @@ else:
     inflacao_opex_anual = def_inf_opex
     inflacao_cac_anual = def_inf_cac
     lista_gatilhos = def_lista_gatilhos
-    tab1, tab2, tab4 = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "🌪️ Análise de Sensibilidade"])
-
+    tab1, tab2, tab4, tab_realizado = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "🌪️ Análise de Sensibilidade", "📊 Realizado"])"🌪️ Análise de Sensibilidade"])
 # 
 # ABA 0: REALIZADO (TRACK RECORD)
 # 
@@ -864,6 +863,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
