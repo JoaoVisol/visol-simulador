@@ -821,8 +821,7 @@ with tab2:
         fig_cap_post.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
         st.plotly_chart(fig_cap_post, use_container_width=True)
         
-    st.caption("💡 *Nota de Governança: Conforme acordo parassocial, a diluição desta rodada afeta exclusivamente os Sócios B, C, D e E. O Sócio A (5%) e os Anjos (5,6%) possuem cláusula anti-diluição, mantendo suas posições inalteradas no Cap Table Post-Money.*")
-
+    
         # --- VISÃO DETALHADA (RECOLHIDA) ---
     with st.expander("🔍 Ver distribuição detalhada do Cap Table"):
         col_det1, col_det2 = st.columns(2)
@@ -975,6 +974,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
