@@ -288,6 +288,88 @@ else:
     lista_gatilhos = def_lista_gatilhos
     tab1, tab2, tab4 = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "🌪️ Análise de Sensibilidade"])
 
+# 
+# ABA 0: REALIZADO (TRACK RECORD)
+# 
+with tab_realizado:
+    st.header("Track Record: Execução Histórica (Set/25 a Fev/26)")
+    
+    # Dados Históricos Consolidados
+    dados_hist = [
+        {"Mês": "Set/25", "Novos Clientes": 8, "Churn Clientes": 0, "Clientes Ativos": 8, "Novos Usuários": 16, "Churn Usuários": 0, "Usuários Ativos": 16, "Receita Bruta (R$)": 489.32, "Setup (R$)": 0.00, "OPEX (R$)": 12245.88},
+        {"Mês": "Out/25", "Novos Clientes": 5, "Churn Clientes": 0, "Clientes Ativos": 13, "Novos Usuários": 15, "Churn Usuários": 0, "Usuários Ativos": 31, "Receita Bruta (R$)": 4454.84, "Setup (R$)": 1000.00, "OPEX (R$)": 14863.58},
+        {"Mês": "Nov/25", "Novos Clientes": 53, "Churn Clientes": 2, "Clientes Ativos": 64, "Novos Usuários": 80, "Churn Usuários": 2, "Usuários Ativos": 109, "Receita Bruta (R$)": 9074.35, "Setup (R$)": 550.00, "OPEX (R$)": 16997.99},
+        {"Mês": "Dez/25", "Novos Clientes": 2, "Churn Clientes": 0, "Clientes Ativos": 66, "Novos Usuários": 2, "Churn Usuários": 0, "Usuários Ativos": 111, "Receita Bruta (R$)": 8603.65, "Setup (R$)": 250.00, "OPEX (R$)": 17528.17},
+        {"Mês": "Jan/26", "Novos Clientes": 9, "Churn Clientes": 0, "Clientes Ativos": 75, "Novos Usuários": 13, "Churn Usuários": 0, "Usuários Ativos": 124, "Receita Bruta (R$)": 9404.43, "Setup (R$)": 1324.90, "OPEX (R$)": 20673.69},
+        {"Mês": "Fev/26", "Novos Clientes": 4, "Churn Clientes": 2, "Clientes Ativos": 77, "Novos Usuários": 5, "Churn Usuários": 2, "Usuários Ativos": 127, "Receita Bruta (R$)": 0.00, "Setup (R$)": 0.00, "OPEX (R$)": 0.00} # Fev Financeiro Parcial
+    ]
+    df_hist = pd.DataFrame(dados_hist)
+    
+    # Cálculos Financeiros Derivados
+    df_hist["MRR (R$)"] = df_hist["Receita Bruta (R$)"] - df_hist["Setup (R$)"]
+    df_hist["Impostos (6%)"] = df_hist["Receita Bruta (R$)"] * 0.06
+    df_hist["Saídas Totais (R$)"] = df_hist["OPEX (R$)"] + df_hist["Impostos (6%)"]
+    df_hist["Fluxo de Caixa (R$)"] = df_hist["Receita Bruta (R$)"] - df_hist["Saídas Totais (R$)"]
+    
+    # Caixa Acumulado (Partindo de R$ 35k em Ago/25)
+    caixa_inicial_hist = 35000.0
+    caixa_acumulado = []
+    saldo = caixa_inicial_hist
+    for fluxo in df_hist["Fluxo de Caixa (R$)"]:
+        if fluxo != 0: # Ignora a soma em Fev/26 já que o financeiro não está fechado
+            saldo += fluxo
+        caixa_acumulado.append(saldo)
+    df_hist["Caixa Acumulado (R$)"] = caixa_acumulado
+    
+    # KPIs de Destaque
+    idx_jan = 4 # Índice de Janeiro (último mês financeiro fechado)
+    mrr_atual_hist = df_hist.loc[idx_jan, "MRR (R$)"]
+    clientes_atuais_hist = df_hist.loc[5, "Clientes Ativos"] # Fev
+    usuarios_atuais_hist = df_hist.loc[5, "Usuários Ativos"] # Fev
+    burn_total_hist = df_hist.loc[0:idx_jan, "Fluxo de Caixa (R$)"].sum()
+    
+    col_h1, col_h2, col_h3, col_h4 = st.columns(4)
+    col_h1.metric("MRR Atual (Jan/26)", format_br(mrr_atual_hist))
+    col_h2.metric("Clientes Ativos (Fev/26)", int(clientes_atuais_hist))
+    col_h3.metric("Usuários Ativos (Fev/26)", int(usuarios_atuais_hist))
+    col_h4.metric("Cash Burn Realizado (Set-Jan)", format_br(burn_total_hist))
+    
+    st.markdown("---")
+    col_hg1, col_hg2 = st.columns(2)
+    
+    with col_hg1:
+        st.subheader("Evolução da Base (Clientes vs Usuários)")
+        fig_base = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        fig_base.add_trace(go.Bar(x=df_hist["Mês"], y=df_hist["Clientes Ativos"], name="Clientes Ativos", marker_color="#1f77b4"), secondary_y=False)
+        fig_base.add_trace(go.Scatter(x=df_hist["Mês"], y=df_hist["Usuários Ativos"], name="Usuários Ativos", mode="lines+markers", line=dict(color="#ff7f0e", width=3)), secondary_y=True)
+        
+        # Anotação de marco (EvoSolar)
+        fig_base.add_annotation(x="Nov/25", y=109, text="🚀 Entrada EvoSolar", showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="black", ax=-40, ay=-40, font=dict(size=12, color="black"), bgcolor="white", bordercolor="black", borderwidth=1, secondary_y=True)
+        
+        fig_base.update_layout(hovermode="x unified", barmode="group", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        fig_base.update_yaxes(title_text="Qtd Clientes", secondary_y=False)
+        fig_base.update_yaxes(title_text="Qtd Usuários", secondary_y=True)
+        st.plotly_chart(fig_base, use_container_width=True)
+        
+    with col_hg2:
+        st.subheader("Receitas vs Despesas (Cash Burn)")
+        fig_burn = go.Figure()
+        
+        # Filtra apenas meses com financeiro fechado (até Jan/26)
+        df_fechado = df_hist.iloc[:5]
+        
+        fig_burn.add_trace(go.Bar(x=df_fechado["Mês"], y=df_fechado["Receita Bruta (R$)"], name="Receita Bruta", marker_color="#2ca02c"))
+        fig_burn.add_trace(go.Bar(x=df_fechado["Mês"], y=df_fechado["Saídas Totais (R$)"], name="Saídas Totais (OPEX + Impostos)", marker_color="#d62728"))
+        
+        fig_burn.update_layout(hovermode="x unified", barmode="group", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        fig_burn.update_yaxes(title_text="Valor (R$)")
+        st.plotly_chart(fig_burn, use_container_width=True)
+        
+    st.subheader("DRE Histórico Detalhado")
+    colunas_mostrar = ["Mês", "Novos Clientes", "Churn Clientes", "Clientes Ativos", "Novos Usuários", "Usuários Ativos", "MRR (R$)", "Setup (R$)", "Receita Bruta (R$)", "OPEX (R$)", "Impostos (6%)", "Saídas Totais (R$)", "Fluxo de Caixa (R$)", "Caixa Acumulado (R$)"]
+    st.dataframe(df_hist[colunas_mostrar].style.format({col: format_br for col in colunas_mostrar if "(R$)" in col}), use_container_width=True)
+
 # --- MOTOR DE PROJEÇÃO FINANCEIRA ---
 def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, aporte_investimento, mes_aporte, 
                    inflacao_cac_anual, inflacao_opex_anual, lista_gatilhos, opex_base_total, marketing_base,
@@ -778,6 +860,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
