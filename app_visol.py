@@ -514,17 +514,30 @@ with tab1:
         fillcolor="rgba(44, 160, 44, 0.25)"
     ))
     
-    # Lógica para identificar o Ponto de Inflexão (Breakeven)
+       # Lógica para identificar o Ponto de Inflexão (Breakeven) e o Burn Acumulado
     breakeven_mes = None
     breakeven_valor = None
+    burn_acumulado = 0
     
     for idx, row in df_projecao.iterrows():
-        if row["Receita Bruta (R$)"] >= row["Saídas Totais (R$)"]:
-            breakeven_mes = row["Mês"]
-            breakeven_valor = row["Receita Bruta (R$)"]
+        if row["Receita Bruta (R$)"] < row["Saídas Totais (R$)"]:
+            # Soma o déficit do mês (Despesas - Receitas)
+            burn_acumulado += (row["Saídas Totais (R$)"] - row["Receita Bruta (R$)"])
+        else:
+            if breakeven_mes is None:
+                breakeven_mes = row["Mês"]
+                breakeven_valor = row["Receita Bruta (R$)"]
             break
             
-    # Se houver breakeven na projeção, adiciona o marcador e a anotação
+    # --- ELEMENTO DE DESTAQUE (MÉTRICAS DE BREAKEVEN) ---
+    col_bk1, col_bk2 = st.columns(2)
+    col_bk1.metric("🎯 Mês de Breakeven", f"Mês {int(breakeven_mes)}" if breakeven_mes else "Não atingido")
+    col_bk2.metric("🔥 Total Cash Burn (Déficit Acumulado)", format_br(burn_acumulado), help="Soma de todas as despesas que superaram as receitas até o ponto de equilíbrio. Representa a necessidade real de capital de giro da operação.")
+    
+    if not breakeven_mes:
+        st.error(f"🚨 **Atenção:** A operação não atinge o Breakeven dentro dos {meses_projecao} meses projetados. O Cash Burn continuará crescendo.")
+
+    # Se houver breakeven na projeção, adiciona o marcador e a anotação no gráfico
     if breakeven_mes:
         fig_breakeven.add_trace(go.Scatter(
             x=[breakeven_mes],
@@ -765,6 +778,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
