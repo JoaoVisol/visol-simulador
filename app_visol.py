@@ -162,7 +162,7 @@ meses_restantes_emprestimo = 18
 cenarios = {
     "Pessimista": {"vendas_mes": 4, "arpa_novo": 150, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 0, "add_vendas": 0, "add_outros": 0},
     "Realista (Premium ARPA200)": {"vendas_mes": 8, "arpa_novo": 200, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 0, "add_outros": 0},
-    "Otimista (Premium ARPA250)": {"vendas_mes": 12, "arpa_novo": 250, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 4000},
+    "Realista c/ invest. (Premium ARPA250)": {"vendas_mes": 12, "arpa_novo": 250, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 4000},
     "Com investimento (Premium + Chat ARPA300)": {"vendas_mes": 20, "arpa_novo": 300, "churn_rate": 0.01, "ticket_implementacao": 750, "add_mkt": 1500, "add_vendas": 1800, "add_outros": 4500}
 }
 
@@ -975,6 +975,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
