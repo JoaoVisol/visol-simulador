@@ -142,7 +142,7 @@ default_opex = pd.DataFrame(default_opex_data)
 # --- FUNÇÕES DE FORMATAÇÃO BRASILEIRA ---
 def format_br(valor, decimais=2):
     if pd.isna(valor): return ""
-    return "R$" + f"{{ :,.{decimais}f}}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
+    return "R$" + f" {{:,.{decimais}f}}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
 def format_pct_br(valor, decimais=1):
     if pd.isna(valor): return ""
@@ -778,6 +778,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
