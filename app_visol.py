@@ -704,7 +704,7 @@ with tab1:
     st.download_button(label="Baixar DRE Projetado (CSV)", data=csv_data, file_name=f"visol_projecao.csv", mime="text/csv")
 
 # 
-# ABA 2: VALUATION SAAS
+# ABA 2: VALUATION SAAS E CAP TABLE
 # 
 with tab2:
     st.header("Valuation da Visol (Método de Múltiplos de ARR)")
@@ -717,10 +717,14 @@ with tab2:
     c1.metric("ARR Atual (Mês 0)", format_br(arr_atual))
     c2.metric(f"ARR Projetado (Mês {meses_projecao})", format_br(arr_projetado))
     c3.metric("Taxa de Churn Mensal", format_pct_br(params['churn_rate']))
-    c4.metric("Crescimento Projetado (ARR)", format_pct_br((arr_projetado/arr_atual)-1))
+    
+    crescimento_arr = (arr_projetado / arr_atual) - 1 if arr_atual > 0 else 0
+    c4.metric("Crescimento Projetado (ARR)", format_pct_br(crescimento_arr))
 
     st.markdown("---")
     col_val1, col_val2 = st.columns([1, 2])
+    
+    equity_cedido = 0.0
     
     with col_val1:
         st.markdown("**Definição do Múltiplo**")
@@ -743,6 +747,60 @@ with tab2:
             st.write(f"- **Equity Cedido ao Investidor:** {format_pct_br(equity_cedido/100, 2)}")
         else:
             st.info("Insira um valor em 'Captação de Investimento' na barra lateral.")
+
+    # --- NOVA SEÇÃO: GRÁFICOS DE CAP TABLE ---
+    st.markdown("---")
+    st.subheader("Distribuição Societária (Cap Table)")
+    
+    # Lógica de Diluição e Proteção
+    cap_atual_anjos = 5.6
+    cap_atual_socio_a = 5.0
+    cap_atual_outros_fundadores = 25.0 + 57.4 + 3.5 + 3.5 # 89.4% (Sócios B, C, D, E)
+    cap_atual_fundadores_total = cap_atual_socio_a + cap_atual_outros_fundadores # 94.4%
+    
+    if aporte_investimento > 0:
+        cap_post_anjos = cap_atual_anjos # Protegido
+        cap_post_socio_a = cap_atual_socio_a # Protegido
+        # A diluição sai integralmente do bloco dos sócios B, C, D e E
+        cap_post_outros_fundadores = cap_atual_outros_fundadores - equity_cedido
+        cap_post_fundadores_total = cap_post_socio_a + cap_post_outros_fundadores
+    else:
+        cap_post_anjos = cap_atual_anjos
+        cap_post_fundadores_total = cap_atual_fundadores_total
+
+    import plotly.graph_objects as go
+    
+    col_cap1, col_cap2 = st.columns(2)
+    
+    with col_cap1:
+        st.markdown("**Cap Table Atual**")
+        labels_atual = ['Sócios Fundadores', 'Anjos (EvoSolar)']
+        values_atual = [cap_atual_fundadores_total, cap_atual_anjos]
+        
+        fig_cap_atual = go.Figure(data=[go.Pie(labels=labels_atual, values=values_atual, hole=.4, 
+                                               marker_colors=['#1f77b4', '#ff7f0e'],
+                                               textinfo='label+percent', hoverinfo='label+percent')])
+        fig_cap_atual.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+        st.plotly_chart(fig_cap_atual, use_container_width=True)
+
+    with col_cap2:
+        st.markdown("**Cap Table Post-Money**")
+        if aporte_investimento > 0:
+            labels_post = ['Sócios Fundadores', 'Anjos (EvoSolar)', 'Novo Investidor']
+            values_post = [cap_post_fundadores_total, cap_post_anjos, equity_cedido]
+            colors_post = ['#1f77b4', '#ff7f0e', '#2ca02c']
+        else:
+            labels_post = ['Sócios Fundadores', 'Anjos (EvoSolar)']
+            values_post = [cap_atual_fundadores_total, cap_atual_anjos]
+            colors_post = ['#1f77b4', '#ff7f0e']
+            
+        fig_cap_post = go.Figure(data=[go.Pie(labels=labels_post, values=values_post, hole=.4, 
+                                              marker_colors=colors_post,
+                                              textinfo='label+percent', hoverinfo='label+percent')])
+        fig_cap_post.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
+        st.plotly_chart(fig_cap_post, use_container_width=True)
+        
+    st.caption("💡 *Nota de Governança: Conforme acordo parassocial, a diluição desta rodada afeta exclusivamente os Sócios B, C, D e E. O Sócio A (5%) e os Anjos (5,6%) possuem cláusula anti-diluição, mantendo suas posições inalteradas no Cap Table Post-Money.*")
 
 # 
 # ABA 4: ANÁLISE DE SENSIBILIDADE
@@ -860,6 +918,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
