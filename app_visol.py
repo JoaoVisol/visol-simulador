@@ -530,9 +530,9 @@ with tab1:
             break
             
     # --- ELEMENTO DE DESTAQUE (MÉTRICAS DE BREAKEVEN) ---
-    col_bk1, col_bk3 = st.columns(3)
+    col_bk1, col_bk2 = st.columns(2)
     col_bk1.metric("🎯 Mês de Breakeven", f"Mês {int(breakeven_mes)}" if breakeven_mes else "Não atingido")
-    col_bk3.metric("🔥 Total Cash Burn (Déficit Acumulado)", format_br(burn_acumulado), help="Soma de todas as despesas que superaram as receitas até o ponto de equilíbrio. Representa a necessidade real de capital de giro da operação.")
+    col_bk2.metric("🔥 Total Cash Burn (Déficit Acumulado)", format_br(burn_acumulado), help="Soma de todas as despesas que superaram as receitas até o ponto de equilíbrio. Representa a necessidade real de capital de giro da operação.")
     
     if not breakeven_mes:
         st.error(f"🚨 **Atenção:** A operação não atinge o Breakeven dentro dos {meses_projecao} meses projetados. O Cash Burn continuará crescendo.")
@@ -778,6 +778,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
