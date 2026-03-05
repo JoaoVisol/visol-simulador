@@ -484,8 +484,84 @@ with tab1:
         st.subheader("Evolução do Caixa Acumulado (Runway)")
         st.line_chart(df_projecao, x="Mês", y="Caixa Acumulado (R$)")
 
-        st.markdown("---")
     st.subheader("Análise Detalhada de Entradas e Saídas")
+    
+        # Gráfico 3: Breakeven (Receitas vs Despesas em Área)
+    st.markdown("---")
+    st.subheader("Ponto de Equilíbrio (Breakeven)")
+    
+    fig_breakeven = go.Figure()
+    
+    # Linha de Despesas (Vermelho com preenchimento)
+    fig_breakeven.add_trace(go.Scatter(
+        x=df_projecao["Mês"], 
+        y=df_projecao["Saídas Totais (R$)"], 
+        name="Despesas Totais", 
+        mode="lines",
+        line=dict(color="#d62728", width=3),
+        fill="tozeroy",
+        fillcolor="rgba(214, 39, 40, 0.15)"
+    ))
+    
+    # Linha de Receitas (Verde com preenchimento)
+    fig_breakeven.add_trace(go.Scatter(
+        x=df_projecao["Mês"], 
+        y=df_projecao["Receita Bruta (R$)"], 
+        name="Receita Bruta", 
+        mode="lines",
+        line=dict(color="#2ca02c", width=3),
+        fill="tozeroy",
+        fillcolor="rgba(44, 160, 44, 0.25)"
+    ))
+    
+    # Lógica para identificar o Ponto de Inflexão (Breakeven)
+    breakeven_mes = None
+    breakeven_valor = None
+    
+    for idx, row in df_projecao.iterrows():
+        if row["Receita Bruta (R$)"] >= row["Saídas Totais (R$)"]:
+            breakeven_mes = row["Mês"]
+            breakeven_valor = row["Receita Bruta (R$)"]
+            break
+            
+    # Se houver breakeven na projeção, adiciona o marcador e a anotação
+    if breakeven_mes:
+        fig_breakeven.add_trace(go.Scatter(
+            x=[breakeven_mes],
+            y=[breakeven_valor],
+            mode="markers",
+            name="Ponto de Inflexão",
+            marker=dict(color="gold", size=14, line=dict(color="black", width=2)),
+            showlegend=False
+        ))
+        
+        fig_breakeven.add_annotation(
+            x=breakeven_mes,
+            y=breakeven_valor,
+            text=f"🎯 Breakeven (Mês {int(breakeven_mes)})",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=2,
+            arrowcolor="black",
+            ax=0,
+            ay=-50,
+            font=dict(size=14, color="black", family="Arial Black"),
+            bgcolor="white",
+            bordercolor="black",
+            borderwidth=1,
+            borderpad=4
+        )
+        
+    fig_breakeven.update_layout(
+        title="Curva de Receitas vs Despesas (Excluindo Aportes)",
+        hovermode="x unified",
+        xaxis_title="Mês da Projeção",
+        yaxis_title="Valor (R$)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    st.plotly_chart(fig_breakeven, use_container_width=True)
     
     # Gráfico 1: Entradas Financeiras + Usuários (Dual Axis)
     fig_entradas = make_subplots(specs=[[{"secondary_y": True}]])
@@ -689,6 +765,7 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
 
 
 
