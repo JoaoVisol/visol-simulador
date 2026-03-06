@@ -193,11 +193,11 @@ if incluir_addon:
     num_addons = st.sidebar.number_input("Quantidade de Produtos", min_value=1, max_value=5, value=safe_num_addons)
     
     for i in range(num_addons):
-        saved_addon = def_lista_addons[i] if i < len(def_lista_addons) else {}
+        saved_addon = def_lista_addons[i] if i &lt; len(def_lista_addons) else {}
         st.sidebar.markdown(f"**Produto {i+1}**")
         nome = st.sidebar.text_input(f"Nome", saved_addon.get("nome", f"Produto {i+1}"), key=f"nome_{i}")
         preco = st.sidebar.number_input(f"Preço por Cliente (R$)", value=float(saved_addon.get("preco", 50.0)), step=10.0, key=f"preco_{i}")
-        attach = st.sidebar.slider(f"Attach Rate (%)", 0, 100, int(saved_addon.get("attach", 0.2)*100), key=f"attach_{i}") / 100.0
+        attach = st.sidebar.slider(f"Attach Rate Alvo (%)", 0, 100, int(saved_addon.get("attach", 0.2)*100), key=f"attach_{i}") / 100.0
         mes_inicio = st.sidebar.number_input(f"Mês de Lançamento", min_value=1, max_value=60, value=int(saved_addon.get("mes_inicio", 3)), key=f"mes_{i}")
         lista_addons.append({"nome": nome, "preco": preco, "attach": attach, "mes_inicio": mes_inicio})
 else:
@@ -216,7 +216,7 @@ if incluir_intersolar:
     safe_int_aumento = def_int_aumento if def_int_custo > 0 else 10000.0
     safe_int_retorno = def_int_retorno if def_int_custo > 0 else 45
     safe_int_efic = def_int_efic if def_int_custo > 0 else 10.0
-
+    
     intersolar_custo_ano1 = st.sidebar.number_input("Custo Base (Ano 1 - R$)", min_value=0.0, value=safe_int_custo, step=5000.0)
     intersolar_aumento_anual = st.sidebar.number_input("Aumento de Custo Anual (R$)", min_value=0.0, value=safe_int_aumento, step=1000.0)
     intersolar_retorno_ano1 = st.sidebar.number_input("Retorno Base (Clientes no Ano 1)", min_value=0, value=int(safe_int_retorno), step=5)
@@ -240,7 +240,6 @@ params = cenarios[cenario_selecionado]
 if is_admin:
     tab1, tab2, tab3, tab4, tab_realizado = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "⚙️ Gestão de Custos", "🌪️ Análise de Sensibilidade", "📊 Realizado"])
     
-   
     with tab3:
         st.header("Gestão de Custos e Alavancagem Operacional")
         
@@ -267,7 +266,7 @@ if is_admin:
         
         lista_gatilhos = []
         for i in range(num_gatilhos):
-            saved_gatilho = def_lista_gatilhos[i] if i < len(def_lista_gatilhos) else {}
+            saved_gatilho = def_lista_gatilhos[i] if i &lt; len(def_lista_gatilhos) else {}
             st.markdown(f"**Gatilho {i+1}**")
             cg1, cg2, cg3 = st.columns(3)
             with cg1:
@@ -278,6 +277,7 @@ if is_admin:
                 valor_gatilho = st.number_input("Adicionar (R$)", min_value=0.0, value=float(saved_gatilho.get("valor", 4000.0)), step=500.0, key=f"gatilho_valor_{i}")
                 
             lista_gatilhos.append({"nome": nome_gatilho, "clientes_alvo": clientes_alvo, "valor": valor_gatilho})
+
 else:
     # Investidor usa os dados do JSON carregados lá em cima
     edited_opex = default_opex
@@ -287,7 +287,9 @@ else:
     inflacao_opex_anual = def_inf_opex
     inflacao_cac_anual = def_inf_cac
     lista_gatilhos = def_lista_gatilhos
+    
     tab1, tab2, tab4, tab_realizado = st.tabs(["📈 Projeções", "💎 Valuation SaaS", "🌪️ Análise de Sensibilidade", "📊 Realizado"])
+
 # 
 # ABA 0: REALIZADO (TRACK RECORD)
 # 
@@ -403,7 +405,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         add_mkt_ativo = params_simulacao["add_mkt"] * fator_custo
         add_vendas_ativo = params_simulacao["add_vendas"] * fator_custo
         add_outros_ativo = params_simulacao["add_outros"] * fator_custo
-
+        
         fator_eficiencia_comercial = (1 + (incremento_semestral_vendas / 100)) ** ((mes - 1) // 6)
         vendas_base_mes = vendas_ramped * fator_eficiencia_comercial
         
@@ -417,7 +419,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
             
             if mes >= 7:
                 mes_pos_evento = (mes - 7) % 12
-                if mes_pos_evento < 3:
+                if mes_pos_evento &lt; 3:
                     ano_evento_retorno = (mes - 7) // 12
                     custo_evento_ref = intersolar_custo_ano1 + (ano_evento_retorno * intersolar_aumento_anual)
                     razao_custo = (custo_evento_ref / intersolar_custo_ano1) if intersolar_custo_ano1 > 0 else 1.0
@@ -436,9 +438,17 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         receita_addons_total = 0
         novo_mrr_addons_total = 0
         
+        # --- LÓGICA DE RAMP-UP DOS ADD-ONS ---
         for i, addon in enumerate(lista_addons):
             if mes >= addon["mes_inicio"]:
-                clientes_addon_atual = clientes_atuais * addon["attach"]
+                # Calcula o fator de ramp-up específico para este add-on (0%, 33%, 66%, 100%)
+                meses_ativos = mes - addon["mes_inicio"]
+                fator_rampup_addon = min(1.0, max(0.0, meses_ativos / 3.0))
+                
+                # O attach rate real evolui conforme o ramp-up
+                attach_real = addon["attach"] * fator_rampup_addon
+                clientes_addon_atual = clientes_atuais * attach_real
+                
                 receita_addons_total += clientes_addon_atual * addon["preco"]
                 if clientes_addon_atual > clientes_addon_anterior[i]:
                     novo_mrr_addons_total += (clientes_addon_atual - clientes_addon_anterior[i]) * addon["preco"]
@@ -454,9 +464,9 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         impostos = receita_bruta * 0.06
         novo_mrr_total_comissionavel = novo_mrr_core + novo_mrr_addons_total
         
-        if novos_clientes < 4:
+        if novos_clientes &lt; 4:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.0) + (receita_implementacao * 0.1)
-        elif novos_clientes < 6:
+        elif novos_clientes &lt; 6:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.20) + (receita_implementacao * 0.15)
         else:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.40) + (receita_implementacao * 0.20)
@@ -474,7 +484,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
             
         # Usa os custos ativos (com delay)
         opex_total = opex_base_mes + add_mkt_ativo + add_vendas_ativo + add_outros_ativo + opex_gatilhos
-        saida_emprestimo = parcela_emprestimo if mes <= meses_restantes_emprestimo else 0
+        saida_emprestimo = parcela_emprestimo if mes &lt;= meses_restantes_emprestimo else 0
         
         saidas_totais = opex_total + impostos + comissao_paga_mes + saida_emprestimo + saida_capex
         fluxo_mes = receita_bruta + entrada_fomento + entrada_aporte - saidas_totais
@@ -506,6 +516,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
             "CAPEX (R$)": saida_capex, "Saídas Totais (R$)": saidas_totais, "Fluxo do Mês (R$)": fluxo_mes,
             "Caixa Acumulado (R$)": caixa_atual, "ARPA Blended (R$)": arpa_blended, "CAC (R$)": cac, "LTV (R$)": ltv
         })
+        
     return pd.DataFrame(dados)
 
 df_projecao = projetar_fluxo(
@@ -520,11 +531,12 @@ df_projecao = projetar_fluxo(
 # 
 with tab1:
     st.header(f"Projeção: {simulacao_escolhida if is_admin else cenario_selecionado}")
-           # --- PREMISSAS DO CENÁRIO E MENU LATERAL ---
+    
+    # --- PREMISSAS DO CENÁRIO E MENU LATERAL ---
     texto_intersolar = "Sim" if incluir_intersolar else "Não"
     texto_addon = f"Sim ({num_addons} produto(s))" if incluir_addon else "Não"
     texto_aporte = f"{format_br(aporte_investimento)} (Mês {mes_aporte})" if aporte_investimento > 0 else "Sem aporte"
-
+    
     st.info(f"""
     **🔍 Premissas do Cenário e Variáveis Globais:**
     * **Perfil Comercial:** {params['vendas_mes']} vendas/mês | **ARPA Novo:** {format_br(params['arpa_novo'])} | **Churn:** {format_pct_br(params['churn_rate'])}
@@ -534,42 +546,44 @@ with tab1:
     """)
     
     ult_mes = df_projecao.iloc[-1]
+    
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("MRR Total Final", format_br(ult_mes['MRR Total (R$)']))
     col2.metric("Receita Bruta Final", format_br(ult_mes['Receita Bruta (R$)']))
     col3.metric("Caixa Final", format_br(ult_mes['Caixa Acumulado (R$)']))
     col4.metric("Clientes Finais", int(ult_mes['Clientes Ativos']))
-
+    
     st.markdown("---")
     st.subheader("Métricas SaaS (Unit Economics)")
     col5, col6, col7, col8 = st.columns(4)
+    
     cac_medio = df_projecao['CAC (R$)'].mean()
     ltv_medio = df_projecao['LTV (R$)'].mean()
     ltv_cac_ratio = ltv_medio / cac_medio if cac_medio > 0 else 0
     arpa_final = ult_mes['ARPA Blended (R$)']
-
+    
     col5.metric("CAC Médio", format_br(cac_medio))
     col6.metric("LTV Estimado (Conservador)", format_br(ltv_medio))
     col7.metric("Relação LTV:CAC", f"{ltv_cac_ratio:.1f}x".replace(".", ","))
     col8.metric("ARPA Final (Blended)", format_br(arpa_final))
-
+    
     st.markdown("---")
     col_graf1, col_graf2 = st.columns(2)
+    
     with col_graf1:
         st.subheader("Composição da Receita")
         if len(lista_addons) > 0:
             st.bar_chart(df_projecao, x="Mês", y=["MRR Licenças (R$)", "MRR Add-ons (R$)", "Receita Implementação (R$)"])
         else:
             st.bar_chart(df_projecao, x="Mês", y=["MRR Licenças (R$)", "Receita Implementação (R$)"])
-
+            
     with col_graf2:
         st.subheader("Evolução do Caixa Acumulado (Runway)")
         st.line_chart(df_projecao, x="Mês", y="Caixa Acumulado (R$)")
-
+        
     st.subheader("Análise Detalhada de Entradas e Saídas")
     
-        # Gráfico 3: Breakeven (Receitas vs Despesas em Área)
-
+    # Gráfico 3: Breakeven (Receitas vs Despesas em Área)
     st.subheader("Ponto de Equilíbrio (Breakeven)")
     
     fig_breakeven = go.Figure()
@@ -596,13 +610,13 @@ with tab1:
         fillcolor="rgba(44, 160, 44, 0.25)"
     ))
     
-       # Lógica para identificar o Ponto de Inflexão (Breakeven) e o Burn Acumulado
+    # Lógica para identificar o Ponto de Inflexão (Breakeven) e o Burn Acumulado
     breakeven_mes = None
     breakeven_valor = None
     burn_acumulado = 0
     
     for idx, row in df_projecao.iterrows():
-        if row["Receita Bruta (R$)"] < row["Saídas Totais (R$)"]:
+        if row["Receita Bruta (R$)"] &lt; row["Saídas Totais (R$)"]:
             # Soma o déficit do mês (Despesas - Receitas)
             burn_acumulado += (row["Saídas Totais (R$)"] - row["Receita Bruta (R$)"])
         else:
@@ -821,15 +835,16 @@ with tab2:
         fig_cap_post.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
         st.plotly_chart(fig_cap_post, use_container_width=True)
         
-    
-        # --- VISÃO DETALHADA (RECOLHIDA) ---
+    st.caption("💡 *Nota de Governança: Conforme acordo parassocial, a diluição desta rodada afeta exclusivamente os Sócios B, C, D e E. O Sócio A (5%) e os Anjos (5,6%) possuem cláusula anti-diluição, mantendo suas posições inalteradas no Cap Table Post-Money.*")
+
+    # --- VISÃO DETALHADA (RECOLHIDA) ---
     with st.expander("🔍 Ver distribuição detalhada do Cap Table"):
         col_det1, col_det2 = st.columns(2)
         
         with col_det1:
             st.markdown("**Detalhamento Atual**")
             # Adicionamos os Anjos aqui para a soma fechar 100% exatos no Plotly
-            labels_det_atual = ['Sócio A', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)']
+            labels_det_atual = ['Sócio A (Protegido)', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)']
             values_det_atual = [cap_atual_socio_a, socio_b, socio_c, socio_d, socio_e, cap_atual_anjos]
             colors_det_atual = ['#17becf', '#aec7e8', '#1f77b4', '#9edae5', '#c6dbef', '#ff7f0e'] 
             
@@ -844,7 +859,7 @@ with tab2:
             st.markdown("**Detalhamento Post-Money**")
             if aporte_investimento > 0:
                 # Adicionamos Anjos e Investidor para fechar 100%
-                labels_det_post = ['Sócio A', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)', 'Novo Investidor']
+                labels_det_post = ['Sócio A (Protegido)', 'Sócio B', 'Sócio C', 'Sócio D', 'Sócio E', 'Anjos (EvoSolar)', 'Novo Investidor']
                 values_det_post = [post_socio_a, post_socio_b, post_socio_c, post_socio_d, post_socio_e, cap_post_anjos, equity_cedido]
                 colors_det_post = ['#17becf', '#aec7e8', '#1f77b4', '#9edae5', '#c6dbef', '#ff7f0e', '#2ca02c']
             else:
@@ -857,7 +872,7 @@ with tab2:
                                                   textinfo='label+percent', hoverinfo='label+percent')])
             fig_det_post.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=False)
             st.plotly_chart(fig_det_post, use_container_width=True)
-            
+
 # 
 # ABA 4: ANÁLISE DE SENSIBILIDADE
 # 
@@ -890,6 +905,7 @@ with tab4:
             matriz_caixa.at[idx_churn, col_venda] = df_sim.iloc[-1]['Caixa Acumulado (R$)']
 
     matriz_caixa = matriz_caixa.astype(float)
+    
     st.markdown("**Eixo Y:** Taxa de Churn Mensal | **Eixo X:** Variação no Volume de Vendas Base")
     st.dataframe(matriz_caixa.style.format(lambda x: format_br(x, decimais=0)).background_gradient(cmap="RdYlGn", axis=None), use_container_width=True)
 
@@ -948,6 +964,7 @@ if is_admin:
             
             # Verifica se já existe um cenário com esse nome exato para atualizar (Upsert manual)
             existing = supabase.table("cenarios_visol").select("id").eq("nome_cenario", nome_simulacao).execute()
+            
             if existing.data:
                 supabase.table("cenarios_visol").update(novo_cenario).eq("nome_cenario", nome_simulacao).execute()
             else:
@@ -974,28 +991,3 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
