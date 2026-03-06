@@ -193,7 +193,7 @@ if incluir_addon:
     num_addons = st.sidebar.number_input("Quantidade de Produtos", min_value=1, max_value=5, value=safe_num_addons)
     
     for i in range(num_addons):
-        saved_addon = def_lista_addons[i] if i &lt; len(def_lista_addons) else {}
+        saved_addon = def_lista_addons[i] if i < len(def_lista_addons) else {}
         st.sidebar.markdown(f"**Produto {i+1}**")
         nome = st.sidebar.text_input(f"Nome", saved_addon.get("nome", f"Produto {i+1}"), key=f"nome_{i}")
         preco = st.sidebar.number_input(f"Preço por Cliente (R$)", value=float(saved_addon.get("preco", 50.0)), step=10.0, key=f"preco_{i}")
@@ -266,7 +266,7 @@ if is_admin:
         
         lista_gatilhos = []
         for i in range(num_gatilhos):
-            saved_gatilho = def_lista_gatilhos[i] if i &lt; len(def_lista_gatilhos) else {}
+            saved_gatilho = def_lista_gatilhos[i] if i < len(def_lista_gatilhos) else {}
             st.markdown(f"**Gatilho {i+1}**")
             cg1, cg2, cg3 = st.columns(3)
             with cg1:
@@ -419,7 +419,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
             
             if mes >= 7:
                 mes_pos_evento = (mes - 7) % 12
-                if mes_pos_evento &lt; 3:
+                if mes_pos_evento < 3:
                     ano_evento_retorno = (mes - 7) // 12
                     custo_evento_ref = intersolar_custo_ano1 + (ano_evento_retorno * intersolar_aumento_anual)
                     razao_custo = (custo_evento_ref / intersolar_custo_ano1) if intersolar_custo_ano1 > 0 else 1.0
@@ -464,9 +464,9 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
         impostos = receita_bruta * 0.06
         novo_mrr_total_comissionavel = novo_mrr_core + novo_mrr_addons_total
         
-        if novos_clientes &lt; 4:
+        if novos_clientes < 4:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.0) + (receita_implementacao * 0.1)
-        elif novos_clientes &lt; 6:
+        elif novos_clientes < 6:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.20) + (receita_implementacao * 0.15)
         else:
             comissao_total_gerada = (novo_mrr_total_comissionavel * 1.40) + (receita_implementacao * 0.20)
@@ -484,7 +484,7 @@ def projetar_fluxo(params_simulacao, meses, incluir_intersolar, lista_addons, ap
             
         # Usa os custos ativos (com delay)
         opex_total = opex_base_mes + add_mkt_ativo + add_vendas_ativo + add_outros_ativo + opex_gatilhos
-        saida_emprestimo = parcela_emprestimo if mes &lt;= meses_restantes_emprestimo else 0
+        saida_emprestimo = parcela_emprestimo if mes <= meses_restantes_emprestimo else 0
         
         saidas_totais = opex_total + impostos + comissao_paga_mes + saida_emprestimo + saida_capex
         fluxo_mes = receita_bruta + entrada_fomento + entrada_aporte - saidas_totais
@@ -616,7 +616,7 @@ with tab1:
     burn_acumulado = 0
     
     for idx, row in df_projecao.iterrows():
-        if row["Receita Bruta (R$)"] &lt; row["Saídas Totais (R$)"]:
+        if row["Receita Bruta (R$)"] < row["Saídas Totais (R$)"]:
             # Soma o déficit do mês (Despesas - Receitas)
             burn_acumulado += (row["Saídas Totais (R$)"] - row["Receita Bruta (R$)"])
         else:
@@ -991,3 +991,4 @@ if is_admin:
                 st.rerun()
             except Exception as e:
                 st.sidebar.error(f"Erro ao excluir no banco: {e}")
+
